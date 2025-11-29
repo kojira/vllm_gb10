@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+Gemma-2-Llama-Swallow-2b-it-v0.1,4,43.89,4,0,4384,99.89,30.85,17.81,43.89
+Gemma-2-Llama-Swallow-2b-it-v0.1,8,46.79,8,0,11516,246.15,43.70,22.18,46.78
+Gemma-2-Llama-Swallow-2b-it-v0.1,16,52.24,16,0,23236,444.78,49.11,23.94,52.24
+Gemma-2-Llama-Swallow-2b-it-v0.1,32,67.50,32,0,44986,666.41,61.14,30.22,67.50
+Gemma-2-Llama-Swallow-2b-it-v0.1,64,95.96,64,0,86933,905.92,82.77,23.24,95.96

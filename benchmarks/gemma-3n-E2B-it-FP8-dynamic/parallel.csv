@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+gemma-3n-E2B-it-FP8-dynamic,4,41.02,4,0,6005,146.40,40.07,38.05,41.01
+gemma-3n-E2B-it-FP8-dynamic,8,42.63,8,0,12039,282.43,41.75,36.78,42.63
+gemma-3n-E2B-it-FP8-dynamic,16,45.73,16,0,24576,537.46,45.72,45.68,45.73
+gemma-3n-E2B-it-FP8-dynamic,32,54.96,32,0,48126,875.71,53.74,36.14,54.96
+gemma-3n-E2B-it-FP8-dynamic,64,87.15,64,0,97639,1120.40,86.48,66.29,87.15
