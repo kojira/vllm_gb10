@@ -28,15 +28,21 @@ HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ### 2. モデルのダウンロード
 
-vLLM コンテナ起動時の認証エラーを回避するため、事前にモデルをローカルにダウンロードします。
+モデルのダウンロードは、後述の「ベンチマーク」セクションの `benchmark_full.py` を使うと自動で行われます。
+
+手動でダウンロードする場合:
 
 ```bash
 # .envからトークンを読み込んで実行
 TOKEN=$(grep "^HF_TOKEN=" .env | cut -d= -f2) && \
-docker compose run --rm -e HF_TOKEN=$TOKEN vllm-server python3 /workspace/scripts/download_model.py
-```
+docker compose run --rm -e HF_TOKEN=$TOKEN vllm-server \
+  python3 /workspace/scripts/download_model.py --model <model_id>
 
-※ 他のモデル（Qwen3など）をダウンロードする場合は `--model` オプションを使用してください。
+# 例: Gemma 3n E2B をダウンロード
+TOKEN=$(grep "^HF_TOKEN=" .env | cut -d= -f2) && \
+docker compose run --rm -e HF_TOKEN=$TOKEN vllm-server \
+  python3 /workspace/scripts/download_model.py --model google/gemma-3n-E2B-it
+```
 
 ### 3. サーバーの起動
 
