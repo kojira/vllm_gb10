@@ -1,8 +1,14 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 -u
 """
 完全自動ベンチマークスクリプト
 モデルのダウンロード→シングルストリームベンチマーク→並列ベンチマークを自動実行
 """
+
+import sys
+import os
+
+# 標準出力のバッファリングを無効化
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 
 import argparse
 import asyncio
@@ -14,6 +20,7 @@ import os
 import csv
 from datetime import datetime
 from pathlib import Path
+from tqdm import tqdm
 
 # 設定
 API_BASE = "http://localhost:8001"
@@ -49,9 +56,9 @@ PARALLEL_PROMPT = SINGLE_PROMPTS[-1]["text"]  # 1024トークン用
 
 def download_model(model_id: str, hf_token: str = None) -> bool:
     """モデルをダウンロード"""
-    print(f"\n{'='*60}")
-    print(f"Step 1: Downloading model {model_id}")
-    print(f"{'='*60}")
+    print(f"\n{'='*60}", flush=True)
+    print(f"Step 1: Downloading model {model_id}", flush=True)
+    print(f"{'='*60}", flush=True)
     
     # HF_TOKENを環境変数または.envから取得
     if not hf_token:
@@ -185,19 +192,20 @@ async def run_single_stream_benchmark(
     await run_single_inference(session, model_path, "Hello", 10)
     
     # 各プロンプトでベンチマーク
-    for prompt_data in SINGLE_PROMPTS:
-        target_tokens = prompt_data["target"]
-        prompt_text = prompt_data["text"]
-        max_tokens = int(target_tokens * 1.5)
-        
-        print(f"  Running inference for target {target_tokens} tokens...")
-        
-        result = await run_single_inference(session, model_path, prompt_text, max_tokens)
-        
-        if result["success"]:
-            latency_ms = result["latency"] * 1000
-            tps = result["tokens"] / result["latency"] if result["latency"] > 0 else 0
-            print(f"    Success: {result['tokens']} tokens, {latency_ms:.2f}ms, {tps:.2f} TPS")
+    with tqdm(total=len(SINGLE_PROMPTS), desc="Single-stream", unit="prompt") as pbar:
+        for prompt_data in SINGLE_PROMPTS:
+            target_tokens = prompt_data["target"]
+            prompt_text = prompt_data["text"]
+            max_tokens = int(target_tokens * 1.5)
+            
+            pbar.set_postfix_str(f"{target_tokens} tokens")
+            
+            result = await run_single_inference(session, model_path, prompt_text, max_tokens)
+            
+            if result["success"]:
+                latency_ms = result["latency"] * 1000
+                tps = result["tokens"] / result["latency"] if result["latency"] > 0 else 0
+                pbar.write(f"  {target_tokens} tokens: {result['tokens']} generated, {tps:.2f} TPS")
             
             with open(single_csv, 'a', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
