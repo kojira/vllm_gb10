@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+Qwen3-1.7B,4,33.56,4,0,6144,183.09,33.55,33.55,33.56
+Qwen3-1.7B,8,36.43,8,0,12288,337.34,36.39,36.35,36.43
+Qwen3-1.7B,16,42.06,16,0,24576,584.33,42.04,42.00,42.06
+Qwen3-1.7B,32,56.04,32,0,49152,877.02,56.03,55.96,56.04
+Qwen3-1.7B,64,78.47,64,0,98304,1252.75,78.42,78.29,78.47

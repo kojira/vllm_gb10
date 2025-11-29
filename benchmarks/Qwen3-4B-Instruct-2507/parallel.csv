@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+Qwen3-4B-Instruct-2507,4,66.31,4,0,6144,92.65,66.30,66.26,66.31
+Qwen3-4B-Instruct-2507,8,70.50,8,0,12288,174.29,70.50,70.45,70.50
+Qwen3-4B-Instruct-2507,16,77.94,16,0,24576,315.32,77.93,77.87,77.94
+Qwen3-4B-Instruct-2507,32,99.31,32,0,49152,494.95,99.30,99.22,99.31
+Qwen3-4B-Instruct-2507,64,129.29,64,0,98304,760.35,129.27,129.12,129.29

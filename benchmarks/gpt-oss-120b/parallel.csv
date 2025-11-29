@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+gpt-oss-120b,4,74.10,4,0,6144,82.91,74.06,74.05,74.09
+gpt-oss-120b,8,100.09,8,0,12288,122.76,100.04,99.95,100.09
+gpt-oss-120b,16,132.59,16,0,24576,185.36,132.49,132.30,132.58
+gpt-oss-120b,32,196.75,32,0,49152,249.82,196.48,196.01,196.75
+gpt-oss-120b,64,286.33,64,0,98258,343.16,286.00,277.36,286.33

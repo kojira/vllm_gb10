@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+gemma-3n-E4B-it,4,81.76,4,0,6031,73.76,80.23,75.67,81.75
+gemma-3n-E4B-it,8,300.36,7,1,10402,34.63,80.93,65.31,83.65
+gemma-3n-E4B-it,16,86.77,16,0,23332,268.90,82.38,64.45,86.77
+gemma-3n-E4B-it,32,103.38,32,0,47234,456.90,99.29,62.33,103.38
+gemma-3n-E4B-it,64,138.30,64,0,94453,682.97,133.05,104.97,138.30

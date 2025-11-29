@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+gpt-oss-20b,4,50.27,4,0,6144,122.22,50.26,50.24,50.27
+gpt-oss-20b,8,58.43,8,0,12288,210.30,58.40,58.33,58.43
+gpt-oss-20b,16,73.29,16,0,24576,335.31,73.23,73.13,73.29
+gpt-oss-20b,32,98.21,32,0,48877,497.67,97.55,79.34,98.21
+gpt-oss-20b,64,116.11,64,0,95234,820.20,112.27,2.43,116.11

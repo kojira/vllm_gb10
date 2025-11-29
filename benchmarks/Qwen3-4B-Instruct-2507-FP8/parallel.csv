@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+Qwen3-4B-Instruct-2507-FP8,4,45.07,4,0,6144,136.31,45.07,45.04,45.07
+Qwen3-4B-Instruct-2507-FP8,8,49.87,8,0,12288,246.40,49.86,49.83,49.87
+Qwen3-4B-Instruct-2507-FP8,16,57.48,16,0,24576,427.56,57.47,57.42,57.48
+Qwen3-4B-Instruct-2507-FP8,32,72.71,32,0,49152,676.03,72.70,72.64,72.71
+Qwen3-4B-Instruct-2507-FP8,64,101.33,64,0,98304,970.12,101.31,101.19,101.33
