@@ -94,7 +94,7 @@ curl -X POST http://localhost:8001/v1/completions \
 
 ```bash
 # 必要なライブラリのインストール
-pip install aiohttp numpy pandas
+pip install aiohttp numpy pandas tqdm
 
 # 完全自動ベンチマーク（ダウンロード含む）
 python3 scripts/benchmark_full.py <model_id>
