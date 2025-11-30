@@ -62,6 +62,27 @@ class CompletionRequest(BaseModel):
     stream: bool = False
     engine: str  # "vllm" or "llamacpp" - REQUIRED
 
+def apply_chat_template(prompt: str, model_path: str) -> str:
+    """Apply appropriate chat template based on model type"""
+    model_name_lower = model_path.lower()
+    
+    # Gemma format
+    if "gemma" in model_name_lower:
+        return f"<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
+    
+    # Qwen format (if instruct)
+    elif "qwen" in model_name_lower and "instruct" in model_name_lower:
+        return f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+    
+    # Swallow/TinySwallow format (alpaca-style)
+    elif "swallow" in model_name_lower and "instruct" in model_name_lower:
+        return f"### 指示:\n{prompt}\n\n### 応答:\n"
+    
+    # Default: no template (for base models)
+    else:
+        return prompt
+
+
 async def load_vllm_model(model_path: str, dtype: str, gpu_memory_utilization: float, max_model_len: int):
     """Load a model using vLLM engine"""
     global state
@@ -292,6 +313,9 @@ async def completions(request: CompletionRequest):
         if state.vllm_status != "loaded":
             raise HTTPException(status_code=503, detail=f"vLLM: Engine status is {state.vllm_status}")
         
+        # Apply chat template if it's an instruct model
+        formatted_prompt = apply_chat_template(request.prompt, state.vllm_current_model)
+        
         request_id = random_uuid()
         sampling_params = SamplingParams(
             max_tokens=request.max_tokens,
@@ -299,7 +323,7 @@ async def completions(request: CompletionRequest):
             top_p=request.top_p
         )
         
-        results_generator = state.vllm_engine.generate(request.prompt, sampling_params, request_id)
+        results_generator = state.vllm_engine.generate(formatted_prompt, sampling_params, request_id)
         
         if request.stream:
             # Streaming response
@@ -346,9 +370,12 @@ async def completions(request: CompletionRequest):
         if state.llamacpp_status != "loaded":
             raise HTTPException(status_code=503, detail=f"llama.cpp: Engine status is {state.llamacpp_status}")
         
+        # Apply chat template if it's an instruct model
+        formatted_prompt = apply_chat_template(request.prompt, state.llamacpp_current_model)
+        
         # Forward request to llama-server
         payload = {
-            "prompt": request.prompt,
+            "prompt": formatted_prompt,
             "n_predict": request.max_tokens,
             "temperature": request.temperature,
             "top_p": request.top_p,
