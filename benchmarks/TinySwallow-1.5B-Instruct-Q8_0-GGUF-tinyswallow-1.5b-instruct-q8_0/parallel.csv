@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+TinySwallow-1.5B-Instruct-Q8_0-GGUF-tinyswallow-1.5b-instruct-q8_0,4,1.38,4,0,186,135.21,0.46,0.07,1.38
+TinySwallow-1.5B-Instruct-Q8_0-GGUF-tinyswallow-1.5b-instruct-q8_0,8,2.15,8,0,334,155.12,0.75,0.06,2.15
+TinySwallow-1.5B-Instruct-Q8_0-GGUF-tinyswallow-1.5b-instruct-q8_0,16,7.58,16,0,1012,133.45,3.91,0.18,7.58
+TinySwallow-1.5B-Instruct-Q8_0-GGUF-tinyswallow-1.5b-instruct-q8_0,32,10.10,32,0,1722,170.41,3.39,0.07,10.10
+TinySwallow-1.5B-Instruct-Q8_0-GGUF-tinyswallow-1.5b-instruct-q8_0,64,19.03,64,0,4198,220.55,8.04,0.15,19.03

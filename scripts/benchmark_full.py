@@ -356,8 +356,15 @@ def main():
     args = parser.parse_args()
     
     # モデル名とパスを決定
-    model_name = args.model_id.split("/")[-1]
-    model_path = f"/workspace/models/{model_name}"
+    # GGUFファイルの場合はフルパスを保持、それ以外はHugging Face model ID
+    if args.model_id.endswith('.gguf'):
+        # GGUFファイルの場合
+        model_name = args.model_id.replace('/', '-').replace('.gguf', '')
+        model_path = f"/workspace/models/{args.model_id}"
+    else:
+        # Hugging Face model IDの場合
+        model_name = args.model_id.split("/")[-1]
+        model_path = f"/workspace/models/{model_name}"
     
     # 出力ディレクトリを作成（モデル名のみ、タイムスタンプなし）
     output_dir = Path(__file__).parent.parent / "benchmarks" / model_name
