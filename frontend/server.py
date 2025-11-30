@@ -6,7 +6,7 @@ import http.server
 import socketserver
 import os
 
-PORT = 3000
+PORT = 8090
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):

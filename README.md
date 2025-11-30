@@ -25,7 +25,7 @@ NVIDIA Grace Blackwell (GB10 / ARM64) 環境向けに最適化された統合推
 - **ARM64 Support**: GB10 環境での動作を確認済み
 - **OpenAI Compatible API**: 統一されたAPIインターフェース
 - **Offline Load**: ローカルモデルマウントにより認証エラーを回避
-- **Web UI**: モダンなチャットインターフェース（ポート3000）
+- **Web UI**: モダンなチャットインターフェース（ポート8090）
 
 ## 必要条件
 
@@ -87,7 +87,7 @@ cd frontend
 python3 server.py
 ```
 
-ブラウザで `http://localhost:3000` にアクセスすると、チャットUIが表示されます。
+ブラウザで `http://localhost:8090` にアクセスすると、チャットUIが表示されます。
 
 **Web UIの機能:**
 - エンジン選択（vLLM / llama.cpp）
