@@ -435,9 +435,46 @@
         const maxTokensInput = document.getElementById('maxTokens');
         const temperatureInput = document.getElementById('temperature');
         const statusText = document.getElementById('statusText');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
 
         let currentModel = null;
         let isLoading = false;
+
+        // 進捗バー表示/非表示
+        function showProgress() {
+            progressContainer.classList.add('active');
+        }
+
+        function hideProgress() {
+            progressContainer.classList.remove('active');
+            progressFill.style.width = '0%';
+        }
+
+        // 進捗バー更新（推定値）
+        function updateProgress(percent, message) {
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = message;
+        }
+
+        // モデルロード進捗をシミュレート
+        async function simulateLoadProgress() {
+            showProgress();
+            updateProgress(10, 'モデルをロード中...');
+            
+            let progress = 10;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) {
+                    progress = 90;
+                    clearInterval(interval);
+                }
+                updateProgress(progress, 'モデルをロード中...');
+            }, 2000);
+            
+            return interval;
+        }
 
         // ステータス確認
         async function checkStatus() {
@@ -472,6 +509,9 @@
 
             statusText.textContent = 'モデルロード中...';
             
+            // 進捗バー表示開始
+            const progressInterval = await simulateLoadProgress();
+            
             try {
                 const response = await fetch(`${API_BASE}/v1/models/load`, {
                     method: 'POST',
@@ -487,10 +527,19 @@
                     throw new Error(error.detail || 'モデルロードに失敗しました');
                 }
 
+                // 完了時に100%表示
+                clearInterval(progressInterval);
+                updateProgress(100, 'ロード完了！');
+                setTimeout(hideProgress, 1000);
+
                 currentModel = modelPath;
                 await checkStatus();
                 return true;
             } catch (error) {
+                // エラー時に進捗バーを隠す
+                clearInterval(progressInterval);
+                hideProgress();
+                
                 addErrorMessage(error.message);
                 statusText.textContent = 'エラー';
                 return false;
