@@ -328,6 +328,11 @@
                         ストリーミング
                     </label>
                 </div>
+                <div class="control-group">
+                    <button id="loadModelBtn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        🔄 モデルロード
+                    </button>
+                </div>
             </div>
             <div class="status">
                 <div class="status-badge">
@@ -659,8 +664,40 @@
             checkStatus();
         });
 
-        modelSelect.addEventListener('change', () => {
+        // モデル選択が変更されたら自動ロード
+        modelSelect.addEventListener('change', async () => {
             currentModel = null;
+            const engine = engineSelect.value;
+            const modelPath = modelSelect.value;
+            
+            // 自動ロードを試みる
+            statusText.textContent = 'モデル変更検出...';
+            await loadModel();
+        });
+
+        // エンジン選択が変更されたら自動ロード
+        engineSelect.addEventListener('change', async () => {
+            currentModel = null;
+            statusText.textContent = 'エンジン変更検出...';
+            await loadModel();
+        });
+
+        // モデルロードボタン
+        const loadModelBtn = document.getElementById('loadModelBtn');
+        loadModelBtn.addEventListener('click', async () => {
+            loadModelBtn.disabled = true;
+            loadModelBtn.textContent = '🔄 ロード中...';
+            
+            currentModel = null; // 強制的に再ロード
+            const success = await loadModel();
+            
+            loadModelBtn.disabled = false;
+            loadModelBtn.textContent = success ? '✅ ロード完了' : '❌ ロード失敗';
+            
+            // 2秒後に元に戻す
+            setTimeout(() => {
+                loadModelBtn.textContent = '🔄 モデルロード';
+            }, 2000);
         });
 
         // 初期化
