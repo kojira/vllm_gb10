@@ -360,11 +360,7 @@
                 <div class="control-group">
                     <label>モデル:</label>
                     <select id="modelSelect">
-                        <option value="/workspace/models/gemma-3n-E2B-it">Gemma 3n E2B-it</option>
-                        <option value="/workspace/models/gemma-3n-E4B-it">Gemma 3n E4B-it</option>
-                        <option value="/workspace/models/Qwen3-0.6B">Qwen3-0.6B</option>
-                        <option value="/workspace/models/TinySwallow-1.5B-Instruct">TinySwallow-1.5B-Instruct</option>
-                        <option value="/workspace/models/TinySwallow-1.5B-Instruct-Q8_0-GGUF/tinyswallow-1.5b-instruct-q8_0.gguf">TinySwallow Q8_0 (GGUF)</option>
+                        <!-- モデルは動的に更新されます -->
                     </select>
                 </div>
                 <div class="control-group">
@@ -442,6 +438,53 @@
         let currentModel = null;
         let isLoading = false;
 
+        // エンジンごとの利用可能なモデル
+        const modelsByEngine = {
+            vllm: [
+                { path: '/workspace/models/gemma-3n-E2B-it', name: 'Gemma 3n E2B-it' },
+                { path: '/workspace/models/gemma-3n-E2B-it-FP8-dynamic', name: 'Gemma 3n E2B-it FP8' },
+                { path: '/workspace/models/gemma-3n-E4B-it', name: 'Gemma 3n E4B-it' },
+                { path: '/workspace/models/Gemma-2-Llama-Swallow-2b-it-v0.1', name: 'Gemma-2-Llama-Swallow 2B' },
+                { path: '/workspace/models/Qwen3-0.6B', name: 'Qwen3-0.6B' },
+                { path: '/workspace/models/Qwen3-1.7B', name: 'Qwen3-1.7B' },
+                { path: '/workspace/models/Qwen3-4B-Instruct-2507', name: 'Qwen3-4B-Instruct' },
+                { path: '/workspace/models/Qwen3-4B-Instruct-2507-FP8', name: 'Qwen3-4B-Instruct FP8' },
+                { path: '/workspace/models/Qwen3-8B', name: 'Qwen3-8B' },
+                { path: '/workspace/models/Qwen3-Next-80B-A3B-Instruct-FP8', name: 'Qwen3-Next-80B FP8' },
+                { path: '/workspace/models/TinySwallow-1.5B-Instruct', name: 'TinySwallow-1.5B-Instruct' },
+                { path: '/workspace/models/gpt-oss-20b', name: 'GPT-OSS-20B' },
+                { path: '/workspace/models/gpt-oss-120b', name: 'GPT-OSS-120B' },
+                { path: '/workspace/models/sarashina2.2-vision-3b', name: 'Sarashina2.2-Vision-3B' }
+            ],
+            llamacpp: [
+                { path: '/workspace/models/TinySwallow-1.5B-Instruct-Q8_0-GGUF/tinyswallow-1.5b-instruct-q8_0.gguf', name: 'TinySwallow-1.5B Q8_0 (GGUF)' },
+                { path: '/workspace/models/openai_gpt-oss-20b-GGUF/openai_gpt-oss-20b-Q8_0.gguf', name: 'GPT-OSS-20B Q8_0 (GGUF)' },
+                { path: '/workspace/models/openai_gpt-oss-20b-GGUF/openai_gpt-oss-20b-Q6_K.gguf', name: 'GPT-OSS-20B Q6_K (GGUF)' },
+                { path: '/workspace/models/openai_gpt-oss-20b-GGUF/openai_gpt-oss-20b-Q5_K_M.gguf', name: 'GPT-OSS-20B Q5_K_M (GGUF)' },
+                { path: '/workspace/models/openai_gpt-oss-20b-GGUF/openai_gpt-oss-20b-Q4_K_M.gguf', name: 'GPT-OSS-20B Q4_K_M (GGUF)' },
+                { path: '/workspace/models/openai_gpt-oss-20b-GGUF/openai_gpt-oss-20b-Q3_K_M.gguf', name: 'GPT-OSS-20B Q3_K_M (GGUF)' },
+                { path: '/workspace/models/openai_gpt-oss-20b-GGUF/openai_gpt-oss-20b-Q2_K.gguf', name: 'GPT-OSS-20B Q2_K (GGUF)' }
+            ]
+        };
+
+        // モデル選択肢を更新
+        function updateModelOptions() {
+            const engine = engineSelect.value;
+            const models = modelsByEngine[engine] || [];
+            
+            modelSelect.innerHTML = '';
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.path;
+                option.textContent = model.name;
+                modelSelect.appendChild(option);
+            });
+            
+            // 現在のモデルをリセット
+            currentModel = null;
+            statusText.textContent = 'モデル未選択';
+        }
+
         // 進捗バー表示/非表示
         function showProgress() {
             progressContainer.classList.add('active');
@@ -459,7 +502,7 @@
         }
 
         // モデルロード進捗を監視
-        async function monitorLoadProgress(engine) {
+        function monitorLoadProgress(engine) {
             showProgress();
             updateProgress(0, '初期化中...');
             
@@ -522,7 +565,7 @@
             statusText.textContent = 'モデルロード中...';
             
             // 進捗バー監視開始
-            const progressInterval = await monitorLoadProgress(engine);
+            const progressInterval = monitorLoadProgress(engine);
             
             try {
                 const response = await fetch(`${API_BASE}/v1/models/load`, {
@@ -776,20 +819,14 @@
         // 送信ボタン
         sendButton.addEventListener('click', sendMessage);
 
-        // エンジン・モデル変更時
+        // エンジン選択が変更されたらモデルリストを更新
         engineSelect.addEventListener('change', () => {
-            currentModel = null;
+            updateModelOptions();
             checkStatus();
         });
 
         // モデル選択が変更されたらcurrentModelをリセット（ロードはしない）
         modelSelect.addEventListener('change', () => {
-            currentModel = null;
-            statusText.textContent = 'モデル未ロード（ロードボタンをクリック）';
-        });
-
-        // エンジン選択が変更されたらcurrentModelをリセット（ロードはしない）
-        engineSelect.addEventListener('change', () => {
             currentModel = null;
             statusText.textContent = 'モデル未ロード（ロードボタンをクリック）';
         });
@@ -813,6 +850,7 @@
         });
 
         // 初期化
+        updateModelOptions(); // モデルリストを初期化
         checkStatus();
         setInterval(checkStatus, 10000); // 10秒ごとにステータス更新
     </script>
