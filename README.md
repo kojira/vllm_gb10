@@ -25,6 +25,7 @@ NVIDIA Grace Blackwell (GB10 / ARM64) 環境向けに最適化された統合推
 - **ARM64 Support**: GB10 環境での動作を確認済み
 - **OpenAI Compatible API**: 統一されたAPIインターフェース
 - **Offline Load**: ローカルモデルマウントにより認証エラーを回避
+- **Web UI**: モダンなチャットインターフェース（ポート3000）
 
 ## 必要条件
 
@@ -77,7 +78,25 @@ docker compose logs -f unified-proxy
 
 `Uvicorn running on http://0.0.0.0:8080` と表示されれば起動完了です。
 
-### 4. ステータスの確認
+### 4. Web UIの起動（オプション）
+
+チャットインターフェースを使用する場合、フロントエンドサーバーを起動します。
+
+```bash
+cd frontend
+python3 server.py
+```
+
+ブラウザで `http://localhost:3000` にアクセスすると、チャットUIが表示されます。
+
+**Web UIの機能:**
+- エンジン選択（vLLM / llama.cpp）
+- モデル選択
+- パラメータ調整（max_tokens, temperature）
+- リアルタイムステータス表示
+- 推論速度（TPS）表示
+
+### 5. ステータスの確認
 
 各エンジンの状態を確認できます。
 
@@ -100,7 +119,7 @@ curl http://localhost:8080/v1/status
 }
 ```
 
-### 5. モデルのロード
+### 8. モデルのロード
 
 推論を行う前に、使用したいモデルをAPI経由でロードします。
 
@@ -118,7 +137,7 @@ curl -X POST http://localhost:8080/v1/models/load \
 
 ロードが完了すると `{"status":"success", ...}` が返ります。
 
-### 6. 推論の実行
+### 9. 推論の実行
 
 モデルロード後、OpenAI互換のAPIで推論を実行できます。**`engine`パラメータは必須です。**
 
@@ -146,7 +165,7 @@ curl -X POST http://localhost:8080/v1/completions \
 }'
 ```
 
-### 7. モデルの切り替え
+### 10. モデルの切り替え
 
 別のモデルを使用したい場合、再度 `/v1/models/load` を叩くと、現在のモデルがアンロードされ、新しいモデルがロードされます。
 
