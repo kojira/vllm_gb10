@@ -23,7 +23,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 # デフォルト設定
-DEFAULT_API_BASE = "http://localhost:8001"
+DEFAULT_API_BASE = "http://localhost:8080"
 CONCURRENCY_LEVELS = [4, 8, 16, 32, 64]
 TARGET_TOKENS = 1024
 
@@ -95,15 +95,15 @@ def download_model(model_id: str, hf_token: str = None) -> bool:
         print(f"✗ Model download failed: {e}")
         return False
 
-async def load_model(session: aiohttp.ClientSession, model_path: str, api_base: str) -> bool:
+async def load_model(session: aiohttp.ClientSession, model_path: str, api_base: str, engine: str) -> bool:
     """モデルをロード"""
-    print(f"\nLoading model: {model_path} ...")
+    print(f"\nLoading model: {model_path} on {engine} engine...")
     start = time.time()
     timeout = aiohttp.ClientTimeout(total=1800)  # 30分
     try:
         async with session.post(
             f"{api_base}/v1/models/load",
-            json={"model_path": model_path},
+            json={"model_path": model_path, "engine": engine},
             timeout=timeout
         ) as resp:
             if resp.status != 200:
@@ -123,7 +123,8 @@ async def run_single_inference(
     model_path: str,
     prompt: str,
     max_tokens: int,
-    api_base: str
+    api_base: str,
+    engine: str
 ) -> dict:
     """単一の推論を実行"""
     payload = {
@@ -132,6 +133,7 @@ async def run_single_inference(
         "max_tokens": max_tokens,
         "temperature": 0.7,
         "top_p": 0.95,
+        "engine": engine,
     }
     
     start_time = time.time()
@@ -173,7 +175,8 @@ async def run_single_stream_benchmark(
     model_path: str,
     model_name: str,
     output_dir: Path,
-    api_base: str
+    api_base: str,
+    engine: str
 ) -> bool:
     """シングルストリームベンチマーク"""
     print(f"\n{'='*60}")
@@ -191,7 +194,7 @@ async def run_single_stream_benchmark(
     
     # ウォームアップ
     print("  Warming up...")
-    await run_single_inference(session, model_path, "Hello", 10, api_base)
+    await run_single_inference(session, model_path, "Hello", 10, api_base, engine)
     
     # 各プロンプトでベンチマーク
     with tqdm(total=len(SINGLE_PROMPTS), desc="Single-stream", unit="prompt") as pbar:
@@ -202,7 +205,7 @@ async def run_single_stream_benchmark(
             
             pbar.set_postfix_str(f"{target_tokens} tokens")
             
-            result = await run_single_inference(session, model_path, prompt_text, max_tokens, api_base)
+            result = await run_single_inference(session, model_path, prompt_text, max_tokens, api_base, engine)
             
             if result["success"]:
                 latency_ms = result["latency"] * 1000
@@ -231,7 +234,8 @@ async def run_parallel_benchmark(
     model_path: str,
     model_name: str,
     output_dir: Path,
-    api_base: str
+    api_base: str,
+    engine: str
 ) -> bool:
     """並列ベンチマーク"""
     print(f"\n{'='*60}")
@@ -254,7 +258,7 @@ async def run_parallel_benchmark(
         
         # 並列リクエストを生成
         tasks = [
-            run_single_inference(session, model_path, PARALLEL_PROMPT, int(TARGET_TOKENS * 1.5), api_base)
+            run_single_inference(session, model_path, PARALLEL_PROMPT, int(TARGET_TOKENS * 1.5), api_base, engine)
             for _ in range(concurrency)
         ]
         
@@ -300,21 +304,21 @@ async def run_parallel_benchmark(
     print(f"\n✓ Parallel results saved to {parallel_csv}")
     return True
 
-async def run_benchmarks(model_id: str, model_path: str, model_name: str, output_dir: Path, api_base: str):
+async def run_benchmarks(model_id: str, model_path: str, model_name: str, output_dir: Path, api_base: str, engine: str):
     """ベンチマークを実行"""
     async with aiohttp.ClientSession() as session:
         # モデルをロード
-        if not await load_model(session, model_path, api_base):
+        if not await load_model(session, model_path, api_base, engine):
             print("Failed to load model. Aborting benchmarks.")
             return False
         
         # シングルストリームベンチマーク
-        if not await run_single_stream_benchmark(session, model_path, model_name, output_dir, api_base):
+        if not await run_single_stream_benchmark(session, model_path, model_name, output_dir, api_base, engine):
             print("Single stream benchmark failed")
             return False
         
         # 並列ベンチマーク
-        if not await run_parallel_benchmark(session, model_path, model_name, output_dir, api_base):
+        if not await run_parallel_benchmark(session, model_path, model_name, output_dir, api_base, engine):
             print("Parallel benchmark failed")
             return False
         
@@ -342,6 +346,12 @@ def main():
         default=DEFAULT_API_BASE,
         help=f"API base URL (デフォルト: {DEFAULT_API_BASE})"
     )
+    parser.add_argument(
+        "--engine",
+        choices=["vllm", "llamacpp"],
+        required=True,
+        help="推論エンジン: vllm または llamacpp"
+    )
     
     args = parser.parse_args()
     
@@ -367,7 +377,7 @@ def main():
         print(f"\nSkipping download (--skip-download specified)")
     
     # Step 2 & 3: ベンチマーク実行
-    success = asyncio.run(run_benchmarks(args.model_id, model_path, model_name, output_dir, args.api_base))
+    success = asyncio.run(run_benchmarks(args.model_id, model_path, model_name, output_dir, args.api_base, args.engine))
     
     if success:
         print(f"\n{'='*60}")

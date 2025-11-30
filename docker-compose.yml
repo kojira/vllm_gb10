@@ -1,9 +1,9 @@
 services:
-  vllm-server:
+  unified-proxy:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vllm-gb10
+    container_name: unified-llm-proxy
     restart: unless-stopped
     shm_size: 16g
     ipc: host
@@ -16,10 +16,10 @@ services:
       # Hugging Faceキャッシュ
       - ./.cache:/root/.cache
     ports:
-      - "8001:8000"
-    # FastAPIサーバーを起動
+      - "8080:8080"
+    # 統合プロキシサーバーを起動
     command: >
-      /bin/bash -c "uvicorn server:app --host 0.0.0.0 --port 8000"
+      /bin/bash -c "uvicorn proxy_server:app --host 0.0.0.0 --port 8080"
     deploy:
       resources:
         reservations:
