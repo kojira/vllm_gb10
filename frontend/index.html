@@ -385,6 +385,10 @@
                 
                 if (engineStatus.status === 'loaded') {
                     statusText.textContent = `${engine} - ${engineStatus.model}`;
+                    // Update currentModel if loaded
+                    if (engineStatus.model) {
+                        currentModel = engineStatus.model;
+                    }
                 } else {
                     statusText.textContent = `${engine} - ${engineStatus.status}`;
                 }
