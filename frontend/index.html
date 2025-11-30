@@ -458,20 +458,32 @@
             progressText.textContent = message;
         }
 
-        // モデルロード進捗をシミュレート
-        async function simulateLoadProgress() {
+        // モデルロード進捗を監視
+        async function monitorLoadProgress(engine) {
             showProgress();
-            updateProgress(10, 'モデルをロード中...');
+            updateProgress(0, '初期化中...');
             
-            let progress = 10;
-            const interval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 90) {
-                    progress = 90;
-                    clearInterval(interval);
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/v1/status`);
+                    const status = await response.json();
+                    const engineStatus = status[engine];
+                    
+                    if (engineStatus.status === 'loading') {
+                        const progressPercent = Math.round(engineStatus.progress * 100);
+                        updateProgress(progressPercent, engineStatus.progress_message || 'ロード中...');
+                    } else if (engineStatus.status === 'loaded') {
+                        updateProgress(100, 'ロード完了！');
+                        clearInterval(interval);
+                        setTimeout(hideProgress, 1000);
+                    } else if (engineStatus.status === 'error') {
+                        clearInterval(interval);
+                        hideProgress();
+                    }
+                } catch (error) {
+                    console.error('進捗取得エラー:', error);
                 }
-                updateProgress(progress, 'モデルをロード中...');
-            }, 2000);
+            }, 500); // 500msごとに更新
             
             return interval;
         }
@@ -509,8 +521,8 @@
 
             statusText.textContent = 'モデルロード中...';
             
-            // 進捗バー表示開始
-            const progressInterval = await simulateLoadProgress();
+            // 進捗バー監視開始
+            const progressInterval = await monitorLoadProgress(engine);
             
             try {
                 const response = await fetch(`${API_BASE}/v1/models/load`, {
@@ -524,14 +536,12 @@
 
                 if (!response.ok) {
                     const error = await response.json();
+                    clearInterval(progressInterval);
+                    hideProgress();
                     throw new Error(error.detail || 'モデルロードに失敗しました');
                 }
 
-                // 完了時に100%表示
-                clearInterval(progressInterval);
-                updateProgress(100, 'ロード完了！');
-                setTimeout(hideProgress, 1000);
-
+                // ロード完了を待つ（進捗監視が自動的に100%にする）
                 currentModel = modelPath;
                 await checkStatus();
                 return true;

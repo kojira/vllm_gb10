@@ -6,6 +6,7 @@ import subprocess
 import signal
 import time
 import json
+import re
 import aiohttp
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Request
@@ -36,6 +37,8 @@ class EngineState:
     vllm_current_model: Optional[str] = None
     vllm_status: str = "idle"  # idle/loading/loaded/error
     vllm_loading_task: Optional[asyncio.Task] = None
+    vllm_progress: float = 0.0  # 0.0 to 1.0
+    vllm_progress_message: str = ""
     
     # llama.cpp state
     llamacpp_process: Optional[subprocess.Popen] = None
@@ -43,6 +46,8 @@ class EngineState:
     llamacpp_status: str = "idle"  # idle/loading/loaded/error
     llamacpp_port: int = 8002
     llamacpp_loading_task: Optional[asyncio.Task] = None
+    llamacpp_progress: float = 0.0  # 0.0 to 1.0
+    llamacpp_progress_message: str = ""
 
 state = EngineState()
 
@@ -88,16 +93,22 @@ async def load_vllm_model(model_path: str, dtype: str, gpu_memory_utilization: f
     global state
     
     state.vllm_status = "loading"
+    state.vllm_progress = 0.0
+    state.vllm_progress_message = "初期化中..."
     
     try:
         # Check if same model already loaded
         if state.vllm_engine is not None and state.vllm_current_model == model_path:
             print(f"vLLM: Model {model_path} already loaded, skipping reload")
             state.vllm_status = "loaded"
+            state.vllm_progress = 1.0
+            state.vllm_progress_message = "ロード済み"
             return {"status": "success", "message": f"Model already loaded: {model_path}"}
         
         # Unload existing engine
         if state.vllm_engine is not None:
+            state.vllm_progress = 0.1
+            state.vllm_progress_message = "既存モデルをアンロード中..."
             print(f"vLLM: Unloading existing model: {state.vllm_current_model}")
             del state.vllm_engine
             gc.collect()
@@ -106,10 +117,16 @@ async def load_vllm_model(model_path: str, dtype: str, gpu_memory_utilization: f
             state.vllm_current_model = None
         
         # Validate path
+        state.vllm_progress = 0.2
+        state.vllm_progress_message = "モデルパスを検証中..."
         if not os.path.exists(model_path):
             state.vllm_status = "error"
+            state.vllm_progress = 0.0
+            state.vllm_progress_message = "エラー: モデルが見つかりません"
             raise HTTPException(status_code=400, detail=f"Model path not found: {model_path}")
         
+        state.vllm_progress = 0.3
+        state.vllm_progress_message = "vLLMエンジンを初期化中..."
         print(f"vLLM: Loading model {model_path}...")
         engine_args = AsyncEngineArgs(
             model=model_path,
@@ -119,9 +136,18 @@ async def load_vllm_model(model_path: str, dtype: str, gpu_memory_utilization: f
             trust_remote_code=True,
             enforce_eager=True
         )
+        
+        state.vllm_progress = 0.5
+        state.vllm_progress_message = "モデルをロード中..."
         state.vllm_engine = AsyncLLMEngine.from_engine_args(engine_args)
+        
+        state.vllm_progress = 0.9
+        state.vllm_progress_message = "最終初期化中..."
         state.vllm_current_model = model_path
+        
         state.vllm_status = "loaded"
+        state.vllm_progress = 1.0
+        state.vllm_progress_message = "ロード完了"
         print(f"vLLM: Model loaded successfully")
         return {"status": "success", "message": f"Model loaded: {model_path}"}
         
@@ -132,11 +158,61 @@ async def load_vllm_model(model_path: str, dtype: str, gpu_memory_utilization: f
         torch.cuda.empty_cache()
         raise HTTPException(status_code=500, detail=str(e))
 
+async def monitor_llamacpp_output(process):
+    """Monitor llama-server stdout for progress information"""
+    global state
+    
+    total_tensors = None
+    loaded_tensors = 0
+    
+    try:
+        while True:
+            line = await asyncio.get_event_loop().run_in_executor(
+                None, process.stdout.readline
+            )
+            if not line:
+                break
+            
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Parse total tensors count
+            # Example: "llama_model_load: loaded meta data with 20 key-value pairs and 291 tensors"
+            if "loaded meta data" in line and "tensors" in line:
+                match = re.search(r'and (\d+) tensors', line)
+                if match:
+                    total_tensors = int(match.group(1))
+                    state.llamacpp_progress = 0.1
+                    state.llamacpp_progress_message = f"メタデータ読み込み完了 ({total_tensors}個のテンソル)"
+                    print(f"llama.cpp: Found {total_tensors} tensors to load")
+            
+            # Parse tensor loading progress
+            # Example: "llama_model_load: - tensor    0:                token_embd.weight q8_0"
+            elif "llama_model_load: - tensor" in line:
+                match = re.search(r'tensor\s+(\d+):', line)
+                if match and total_tensors:
+                    loaded_tensors = int(match.group(1)) + 1
+                    progress = 0.1 + (loaded_tensors / total_tensors) * 0.8  # 10% to 90%
+                    state.llamacpp_progress = progress
+                    state.llamacpp_progress_message = f"テンソルロード中 ({loaded_tensors}/{total_tensors})"
+            
+            # Server ready message
+            elif "HTTP server listening" in line or "server is listening" in line:
+                state.llamacpp_progress = 0.95
+                state.llamacpp_progress_message = "サーバー起動中..."
+                print(f"llama.cpp: Server is starting...")
+                
+    except Exception as e:
+        print(f"llama.cpp: Error monitoring output: {e}")
+
 async def load_llamacpp_model(model_path: str):
     """Load a model using llama.cpp server"""
     global state
     
     state.llamacpp_status = "loading"
+    state.llamacpp_progress = 0.0
+    state.llamacpp_progress_message = "初期化中..."
     
     try:
         # Check if same model already loaded
@@ -145,10 +221,14 @@ async def load_llamacpp_model(model_path: str):
             if state.llamacpp_process.poll() is None:
                 print(f"llama.cpp: Model {model_path} already loaded, skipping reload")
                 state.llamacpp_status = "loaded"
+                state.llamacpp_progress = 1.0
+                state.llamacpp_progress_message = "ロード済み"
                 return {"status": "success", "message": f"Model already loaded: {model_path}"}
         
         # Stop existing process
         if state.llamacpp_process is not None:
+            state.llamacpp_progress = 0.05
+            state.llamacpp_progress_message = "既存プロセスを停止中..."
             print(f"llama.cpp: Stopping existing process for model: {state.llamacpp_current_model}")
             try:
                 state.llamacpp_process.send_signal(signal.SIGTERM)
@@ -164,8 +244,12 @@ async def load_llamacpp_model(model_path: str):
         # Validate path
         if not os.path.exists(model_path):
             state.llamacpp_status = "error"
+            state.llamacpp_progress = 0.0
+            state.llamacpp_progress_message = "エラー: モデルが見つかりません"
             raise HTTPException(status_code=400, detail=f"Model path not found: {model_path}")
         
+        state.llamacpp_progress = 0.1
+        state.llamacpp_progress_message = "llama-serverを起動中..."
         print(f"llama.cpp: Starting server with model {model_path}...")
         
         # Start llama-server process
@@ -189,6 +273,9 @@ async def load_llamacpp_model(model_path: str):
         
         state.llamacpp_current_model = model_path
         
+        # Start monitoring output in background
+        asyncio.create_task(monitor_llamacpp_output(state.llamacpp_process))
+        
         # Wait for server to be ready
         max_wait = 120  # 2 minutes
         start_time = time.time()
@@ -199,6 +286,8 @@ async def load_llamacpp_model(model_path: str):
                     async with session.get(f"http://127.0.0.1:{state.llamacpp_port}/health", timeout=aiohttp.ClientTimeout(total=2)) as resp:
                         if resp.status == 200:
                             state.llamacpp_status = "loaded"
+                            state.llamacpp_progress = 1.0
+                            state.llamacpp_progress_message = "ロード完了"
                             print(f"llama.cpp: Server ready")
                             return {"status": "success", "message": f"Model loaded: {model_path}"}
                 except:
@@ -452,16 +541,20 @@ async def completions(request: CompletionRequest):
 
 @app.get("/v1/status")
 async def get_status():
-    """Get the status of both engines"""
+    """Get the status of both engines with progress information"""
     return {
         "vllm": {
             "status": state.vllm_status,
-            "model": state.vllm_current_model
+            "model": state.vllm_current_model,
+            "progress": state.vllm_progress,
+            "progress_message": state.vllm_progress_message
         },
         "llamacpp": {
             "status": state.llamacpp_status,
             "model": state.llamacpp_current_model,
-            "process_alive": state.llamacpp_process is not None and state.llamacpp_process.poll() is None
+            "process_alive": state.llamacpp_process is not None and state.llamacpp_process.poll() is None,
+            "progress": state.llamacpp_progress,
+            "progress_message": state.llamacpp_progress_message
         }
     }
 
