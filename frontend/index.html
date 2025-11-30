@@ -329,6 +329,165 @@
             border-left: 4px solid #dc2626;
         }
 
+        /* Session Management Styles */
+        .session-panel {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: #1e293b;
+            color: white;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .session-panel.open {
+            transform: translateX(0);
+        }
+
+        .session-panel-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-panel-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .session-panel-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .session-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.05);
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .session-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .session-item-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .session-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .session-item-meta {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 4px;
+        }
+
+        .session-item-delete {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            padding: 5px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .session-item:hover .session-item-delete {
+            opacity: 1;
+        }
+
+        .session-item-delete:hover {
+            color: #f87171;
+        }
+
+        .new-session-btn {
+            margin: 10px;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .new-session-btn:hover {
+            transform: scale(1.02);
+        }
+
+        .session-toggle-btn {
+            position: fixed;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        .session-toggle-btn:hover {
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .session-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .session-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
         @media (max-width: 768px) {
             .container {
                 height: 100vh;
@@ -346,6 +505,20 @@
     </style>
 </head>
 <body>
+    <!-- セッション管理パネル -->
+    <div class="session-overlay" id="sessionOverlay"></div>
+    <button class="session-toggle-btn" id="sessionToggleBtn" title="会話履歴">📋</button>
+    <div class="session-panel" id="sessionPanel">
+        <div class="session-panel-header">
+            <h2>📋 会話履歴</h2>
+            <button class="session-panel-close" id="sessionPanelClose">×</button>
+        </div>
+        <button class="new-session-btn" id="newSessionBtn">+ 新しい会話</button>
+        <div class="session-list" id="sessionList">
+            <!-- セッションリストがここに動的に追加されます -->
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>🤖 統合LLM推論チャット</h1>
@@ -381,12 +554,41 @@
                     <button id="loadModelBtn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
                         🔄 モデルロード
                     </button>
+                    <button id="unloadModelBtn" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; opacity: 0.5;" disabled>
+                        ⏏️ アンロード
+                    </button>
+                </div>
+            </div>
+            <!-- モデルダウンロードセクション -->
+            <div class="controls" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <div class="control-group" style="flex: 1; flex-wrap: wrap;">
+                    <label>📥 ダウンロード:</label>
+                    <input type="text" id="modelIdInput" placeholder="例: google/gemma-3n-E2B-it" 
+                           style="padding: 6px 12px; border: none; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; font-size: 14px; min-width: 200px;">
+                    <input type="text" id="filenameInput" placeholder="GGUF: ファイル名 or ディレクトリ名" 
+                           style="padding: 6px 12px; border: none; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; font-size: 14px; min-width: 200px;"
+                           title="GGUFモデルの場合: 単一ファイルは xxx.gguf、分割ファイルはディレクトリ名（例: openai_gpt-oss-120b-Q4_K_M）">
+                    <button id="downloadBtn" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        ⬇️ ダウンロード
+                    </button>
+                    <button id="refreshModelsBtn" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 8px; cursor: pointer;" title="モデルリストを更新">
+                        🔄
+                    </button>
+                </div>
+            </div>
+            <div id="downloadProgress" style="display: none; margin-top: 10px;">
+                <div style="background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; height: 24px; position: relative;">
+                    <div id="downloadProgressBar" style="height: 100%; background: #10b981; width: 0%; transition: width 0.3s;"></div>
+                    <div id="downloadProgressText" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 12px; white-space: nowrap;"></div>
                 </div>
             </div>
             <div class="status">
                 <div class="status-badge">
                     <div class="status-indicator"></div>
                     <span id="statusText">接続中...</span>
+                </div>
+                <div class="status-badge" style="background: rgba(16, 185, 129, 0.3);">
+                    <span id="sessionStatus">💬 新しい会話</span>
                 </div>
                 <div class="progress-container" id="progressContainer">
                     <div class="progress-bar">
@@ -435,8 +637,18 @@
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
 
+        // セッション管理用要素
+        const sessionPanel = document.getElementById('sessionPanel');
+        const sessionOverlay = document.getElementById('sessionOverlay');
+        const sessionToggleBtn = document.getElementById('sessionToggleBtn');
+        const sessionPanelClose = document.getElementById('sessionPanelClose');
+        const sessionList = document.getElementById('sessionList');
+        const newSessionBtn = document.getElementById('newSessionBtn');
+
         let currentModel = null;
         let isLoading = false;
+        let currentSessionId = null;
+        let sessions = [];
 
         // エンジンごとの利用可能なモデル
         const modelsByEngine = {
@@ -548,8 +760,36 @@
                 } else {
                     statusText.textContent = `${engine} - ${engineStatus.status}`;
                 }
+                
+                // アンロードボタンの状態を更新
+                updateUnloadButtonState(engineStatus.status === 'loaded');
             } catch (error) {
                 statusText.textContent = '接続エラー';
+                updateUnloadButtonState(false);
+            }
+        }
+        
+        // アンロードボタンの状態を更新
+        function updateUnloadButtonState(enabled) {
+            const unloadBtn = document.getElementById('unloadModelBtn');
+            if (unloadBtn) {
+                unloadBtn.disabled = !enabled;
+                unloadBtn.style.opacity = enabled ? '1' : '0.5';
+                unloadBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            }
+        }
+
+        // セッションステータス更新
+        function updateSessionStatus() {
+            const sessionStatusEl = document.getElementById('sessionStatus');
+            if (sessionStatusEl) {
+                if (currentSessionId) {
+                    sessionStatusEl.textContent = '💬 会話中';
+                    sessionStatusEl.parentElement.style.background = 'rgba(16, 185, 129, 0.3)';
+                } else {
+                    sessionStatusEl.textContent = '💬 新しい会話';
+                    sessionStatusEl.parentElement.style.background = 'rgba(255, 255, 255, 0.2)';
+                }
             }
         }
 
@@ -584,10 +824,45 @@
                     throw new Error(error.detail || 'モデルロードに失敗しました');
                 }
 
-                // ロード完了を待つ（進捗監視が自動的に100%にする）
-                currentModel = modelPath;
-                await checkStatus();
-                return true;
+                // ロード完了をポーリングで待つ
+                return new Promise((resolve) => {
+                    const checkLoaded = setInterval(async () => {
+                        try {
+                            const statusRes = await fetch(`${API_BASE}/v1/status`);
+                            const status = await statusRes.json();
+                            const engineStatus = status[engine];
+                            
+                            if (engineStatus.status === 'loaded') {
+                                clearInterval(checkLoaded);
+                                clearInterval(progressInterval);
+                                hideProgress();
+                                currentModel = modelPath;
+                                await checkStatus();
+                                resolve(true);
+                            } else if (engineStatus.status === 'error') {
+                                clearInterval(checkLoaded);
+                                clearInterval(progressInterval);
+                                hideProgress();
+                                addErrorMessage('モデルロードに失敗しました');
+                                statusText.textContent = 'エラー';
+                                resolve(false);
+                            }
+                            // loading状態の場合は継続
+                        } catch (e) {
+                            console.error('ステータス確認エラー:', e);
+                        }
+                    }, 500);
+                    
+                    // タイムアウト（10分）
+                    setTimeout(() => {
+                        clearInterval(checkLoaded);
+                        clearInterval(progressInterval);
+                        hideProgress();
+                        addErrorMessage('モデルロードがタイムアウトしました');
+                        statusText.textContent = 'タイムアウト';
+                        resolve(false);
+                    }, 600000);
+                });
             } catch (error) {
                 // エラー時に進捗バーを隠す
                 clearInterval(progressInterval);
@@ -608,6 +883,28 @@
             const loaded = await loadModel();
             if (!loaded) return;
 
+            // セッションがない場合は自動作成
+            if (!currentSessionId) {
+                try {
+                    const response = await fetch(`${API_BASE}/v1/sessions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: message.substring(0, 30) + (message.length > 30 ? '...' : ''),
+                            engine: engineSelect.value,
+                            model: currentModel
+                        })
+                    });
+                    const data = await response.json();
+                    currentSessionId = data.id;
+                    updateSessionStatus();
+                    console.log('セッション自動作成:', currentSessionId);
+                } catch (error) {
+                    console.error('セッション作成エラー:', error);
+                    // セッション作成に失敗しても会話は続行
+                }
+            }
+
             // ユーザーメッセージ追加
             addMessage('user', message);
             messageInput.value = '';
@@ -622,17 +919,20 @@
 
             try {
                 const startTime = Date.now();
+                const requestBody = {
+                    prompt: message,
+                    max_tokens: parseInt(maxTokensInput.value),
+                    temperature: parseFloat(temperatureInput.value),
+                    engine: engineSelect.value,
+                    model: modelSelect.value,
+                    stream: useStreaming,
+                    session_id: currentSessionId  // 常にセッションIDを送信
+                };
+                
                 const response = await fetch(`${API_BASE}/v1/completions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: message,
-                        max_tokens: parseInt(maxTokensInput.value),
-                        temperature: parseFloat(temperatureInput.value),
-                        engine: engineSelect.value,
-                        model: modelSelect.value,
-                        stream: useStreaming
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
@@ -677,6 +977,7 @@
                                     if (parsed.choices && parsed.choices[0].text) {
                                         const deltaText = parsed.choices[0].text;
                                         fullText += deltaText;
+                                        // バックエンドでサニタイズ済みなのでそのまま表示
                                         assistantElement.innerHTML = escapeHtml(fullText);
                                         tokenCount++;
                                         chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -813,9 +1114,18 @@
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
-        // Enterキーで送信
+        // IME変換中フラグ（日本語入力対応）
+        let isComposing = false;
+        messageInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+        messageInput.addEventListener('compositionend', () => {
+            isComposing = false;
+        });
+
+        // Enterキーで送信（IME変換中は送信しない）
         messageInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
                 e.preventDefault();
                 sendMessage();
             }
@@ -884,10 +1194,367 @@
             }, 2000);
         });
 
+        // アンロードボタン
+        const unloadModelBtn = document.getElementById('unloadModelBtn');
+        unloadModelBtn.addEventListener('click', async () => {
+            const engine = engineSelect.value;
+            unloadModelBtn.disabled = true;
+            unloadModelBtn.textContent = '⏏️ アンロード中...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/v1/models/unload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ engine: engine })
+                });
+                
+                if (response.ok) {
+                    currentModel = null;
+                    unloadModelBtn.textContent = '✅ アンロード完了';
+                    statusText.textContent = `${engine}: モデルをアンロードしました`;
+                    updateUnloadButtonState(false); // アンロード後は無効化
+                } else {
+                    const error = await response.json();
+                    unloadModelBtn.textContent = '❌ 失敗';
+                    statusText.textContent = `アンロード失敗: ${error.detail}`;
+                }
+            } catch (error) {
+                unloadModelBtn.textContent = '❌ エラー';
+                statusText.textContent = `エラー: ${error.message}`;
+            }
+            
+            setTimeout(() => {
+                unloadModelBtn.textContent = '⏏️ アンロード';
+                checkStatus(); // ステータス更新でボタン状態も更新
+            }, 2000);
+        });
+
+        // ダウンロード機能
+        const modelIdInput = document.getElementById('modelIdInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const refreshModelsBtn = document.getElementById('refreshModelsBtn');
+        const downloadProgress = document.getElementById('downloadProgress');
+        const downloadProgressBar = document.getElementById('downloadProgressBar');
+        const downloadProgressText = document.getElementById('downloadProgressText');
+
+        let downloadMonitorInterval = null;
+
+        const filenameInput = document.getElementById('filenameInput');
+
+        async function downloadModel() {
+            const modelId = modelIdInput.value.trim();
+            const filename = filenameInput.value.trim() || null;
+            
+            if (!modelId) {
+                alert('モデルIDを入力してください（例: google/gemma-3n-E2B-it）');
+                return;
+            }
+
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = '⏳ ダウンロード中...';
+            downloadProgress.style.display = 'block';
+            downloadProgressBar.style.width = '0%';
+            downloadProgressText.textContent = 'ダウンロード開始...';
+
+            // 進捗監視開始
+            downloadMonitorInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/v1/status`);
+                    const status = await res.json();
+                    if (status.download) {
+                        const progress = Math.round(status.download.progress * 100);
+                        downloadProgressBar.style.width = `${progress}%`;
+                        downloadProgressText.textContent = status.download.message || `${progress}%`;
+                        
+                        if (status.download.status === 'completed' || status.download.status === 'error') {
+                            clearInterval(downloadMonitorInterval);
+                            downloadMonitorInterval = null;
+                        }
+                    }
+                } catch (e) {
+                    console.error('進捗取得エラー:', e);
+                }
+            }, 500);
+
+            try {
+                const requestBody = { model_id: modelId };
+                if (filename) {
+                    requestBody.filename = filename;
+                }
+                
+                const response = await fetch(`${API_BASE}/v1/models/download`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    downloadProgressBar.style.width = '100%';
+                    downloadProgressText.textContent = '✅ ダウンロード完了！';
+                    downloadBtn.textContent = '✅ 完了';
+                    modelIdInput.value = '';
+                    filenameInput.value = '';
+                    
+                    // モデルリストを更新
+                    await refreshModelList();
+                } else {
+                    downloadProgressText.textContent = `❌ エラー: ${result.detail}`;
+                    downloadBtn.textContent = '❌ 失敗';
+                }
+            } catch (error) {
+                downloadProgressText.textContent = `❌ エラー: ${error.message}`;
+                downloadBtn.textContent = '❌ 失敗';
+            } finally {
+                if (downloadMonitorInterval) {
+                    clearInterval(downloadMonitorInterval);
+                    downloadMonitorInterval = null;
+                }
+                downloadBtn.disabled = false;
+                setTimeout(() => {
+                    downloadBtn.textContent = '⬇️ ダウンロード';
+                    downloadProgress.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        async function refreshModelList() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/models/list`);
+                const data = await response.json();
+                
+                // モデルリストを更新
+                modelsByEngine.vllm = data.models
+                    .filter(m => m.type === 'transformers')
+                    .map(m => ({ path: m.path, name: m.name }));
+                
+                // GGUFモデルの処理：分割ファイルはまとめて1つのモデルとして表示
+                modelsByEngine.llamacpp = data.models
+                    .filter(m => m.type === 'gguf')
+                    .flatMap(m => {
+                        // 分割ファイルをディレクトリごとにグループ化
+                        const grouped = {};
+                        m.gguf_files.forEach(f => {
+                            // 分割ファイルかどうかチェック（-00001-of-00002.gguf のようなパターン）
+                            const splitMatch = f.match(/^(.+)-\d{5}-of-\d{5}\.gguf$/);
+                            if (splitMatch) {
+                                // 分割ファイル: ベース名でグループ化
+                                const baseName = splitMatch[1];
+                                if (!grouped[baseName]) {
+                                    grouped[baseName] = { files: [], baseName };
+                                }
+                                grouped[baseName].files.push(f);
+                            } else {
+                                // 単一ファイル
+                                grouped[f] = { files: [f], baseName: f.replace('.gguf', '') };
+                            }
+                        });
+                        
+                        // グループごとにモデルエントリを作成
+                        return Object.values(grouped).map(g => {
+                            // 分割ファイルの場合は最初のファイルのパスを使用
+                            const firstFile = g.files.sort()[0];
+                            const displayName = g.files.length > 1 
+                                ? `${m.name} (${g.baseName}, ${g.files.length}分割)`
+                                : `${m.name} (${firstFile})`;
+                            return {
+                                path: `${m.path}/${firstFile}`,
+                                name: displayName
+                            };
+                        });
+                    });
+                
+                updateModelOptions();
+                console.log('モデルリスト更新:', data.models.length, 'モデル');
+            } catch (error) {
+                console.error('モデルリスト取得エラー:', error);
+            }
+        }
+
+        downloadBtn.addEventListener('click', downloadModel);
+        refreshModelsBtn.addEventListener('click', refreshModelList);
+
+        // Enterキーでダウンロード開始
+        modelIdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                downloadModel();
+            }
+        });
+
+        // ============== セッション管理 ==============
+        
+        // セッションパネルの開閉
+        function openSessionPanel() {
+            sessionPanel.classList.add('open');
+            sessionOverlay.classList.add('open');
+            loadSessions();
+        }
+
+        function closeSessionPanel() {
+            sessionPanel.classList.remove('open');
+            sessionOverlay.classList.remove('open');
+        }
+
+        sessionToggleBtn.addEventListener('click', openSessionPanel);
+        sessionPanelClose.addEventListener('click', closeSessionPanel);
+        sessionOverlay.addEventListener('click', closeSessionPanel);
+
+        // セッション一覧を取得
+        async function loadSessions() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/sessions`);
+                const data = await response.json();
+                sessions = data.sessions || [];
+                renderSessionList();
+            } catch (error) {
+                console.error('セッション取得エラー:', error);
+            }
+        }
+
+        // セッションリストを描画
+        function renderSessionList() {
+            sessionList.innerHTML = '';
+            
+            if (sessions.length === 0) {
+                sessionList.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">会話履歴がありません</div>';
+                return;
+            }
+
+            sessions.forEach(session => {
+                const item = document.createElement('div');
+                item.className = `session-item${session.id === currentSessionId ? ' active' : ''}`;
+                item.innerHTML = `
+                    <div class="session-item-info">
+                        <div class="session-item-title">${escapeHtml(session.title || '無題の会話')}</div>
+                        <div class="session-item-meta">${session.engine || '-'} | ${formatDate(session.updated_at)}</div>
+                    </div>
+                    <button class="session-item-delete" data-id="${session.id}" title="削除">🗑️</button>
+                `;
+                
+                item.querySelector('.session-item-info').addEventListener('click', () => loadSession(session.id));
+                item.querySelector('.session-item-delete').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteSession(session.id);
+                });
+                
+                sessionList.appendChild(item);
+            });
+        }
+
+        // 日付フォーマット
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 新しいセッションを作成
+        async function createNewSession() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: `会話 ${new Date().toLocaleString('ja-JP')}`,
+                        engine: engineSelect.value,
+                        model: currentModel
+                    })
+                });
+                const data = await response.json();
+                currentSessionId = data.id;
+                
+                // チャット画面をクリア
+                clearChat();
+                updateSessionStatus();
+                
+                // セッションリストを更新
+                await loadSessions();
+                closeSessionPanel();
+                
+                statusText.textContent = `新しい会話を開始しました`;
+            } catch (error) {
+                console.error('セッション作成エラー:', error);
+                alert('セッションの作成に失敗しました');
+            }
+        }
+
+        // セッションを読み込む
+        async function loadSession(sessionId) {
+            try {
+                const response = await fetch(`${API_BASE}/v1/sessions/${sessionId}`);
+                const session = await response.json();
+                
+                currentSessionId = sessionId;
+                
+                // チャット画面をクリアして履歴を表示
+                clearChat();
+                
+                if (session.messages && session.messages.length > 0) {
+                    session.messages.forEach(msg => {
+                        addMessage(msg.role, msg.content);
+                    });
+                }
+                
+                // セッションのエンジン/モデルを復元
+                if (session.engine) {
+                    engineSelect.value = session.engine;
+                    updateModelOptions();
+                }
+                
+                closeSessionPanel();
+                updateSessionStatus();
+                statusText.textContent = `会話「${session.title}」を読み込みました`;
+                
+                // セッションリストを更新（アクティブ表示のため）
+                await loadSessions();
+            } catch (error) {
+                console.error('セッション読み込みエラー:', error);
+                alert('セッションの読み込みに失敗しました');
+            }
+        }
+
+        // セッションを削除
+        async function deleteSession(sessionId) {
+            if (!confirm('この会話を削除しますか？')) return;
+            
+            try {
+                await fetch(`${API_BASE}/v1/sessions/${sessionId}`, { method: 'DELETE' });
+                
+                if (currentSessionId === sessionId) {
+                    currentSessionId = null;
+                    clearChat();
+                    updateSessionStatus();
+                }
+                
+                await loadSessions();
+            } catch (error) {
+                console.error('セッション削除エラー:', error);
+                alert('セッションの削除に失敗しました');
+            }
+        }
+
+        // チャット画面をクリア
+        function clearChat() {
+            chatContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="avatar">🤖</div>
+                    <div>
+                        <div class="message-content">
+                            こんにちは！統合LLM推論システムへようこそ。vLLMとllama.cppのどちらのエンジンも使用できます。何でも聞いてください！
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        newSessionBtn.addEventListener('click', createNewSession);
+
         // 初期化
-        updateModelOptions(); // モデルリストを初期化
+        refreshModelList(); // サーバーからモデルリストを取得
         checkStatus();
         setInterval(checkStatus, 10000); // 10秒ごとにステータス更新
+        loadSessions(); // セッション一覧を読み込む
     </script>
 </body>
 </html>

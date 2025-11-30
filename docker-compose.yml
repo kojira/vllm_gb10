@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     shm_size: 16g
     ipc: host
+    env_file:
+      - ../../.env
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -21,6 +23,8 @@ services:
       - ./proxy_server.py:/workspace/proxy_server.py
       # スクリプト（開発時に即座に反映）
       - ./scripts:/workspace/scripts
+      # データベース（会話履歴）
+      - ./data:/workspace/data
     ports:
       - "8080:8080"
     # 統合プロキシサーバーを起動（開発時は--reloadで自動リロード）
