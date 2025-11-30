@@ -207,7 +207,16 @@ async def load_llamacpp_model(model_path: str):
                 # Check if process died
                 if state.llamacpp_process.poll() is not None:
                     state.llamacpp_status = "error"
-                    raise HTTPException(status_code=500, detail="llama-server process died during startup")
+                    # Capture output for debugging
+                    try:
+                        stdout, stderr = state.llamacpp_process.communicate(timeout=1)
+                        error_msg = f"llama-server process died during startup. Output: {stdout[-500:] if stdout else 'N/A'}"
+                    except:
+                        error_msg = "llama-server process died during startup (no output captured)"
+                    print(f"llama.cpp: {error_msg}")
+                    state.llamacpp_process = None
+                    state.llamacpp_current_model = None
+                    raise HTTPException(status_code=500, detail=error_msg)
                 
                 await asyncio.sleep(1)
         
@@ -292,11 +301,24 @@ async def vllm_stream_generator(request_id: str, results_generator):
 
 async def llamacpp_stream_generator(url: str, payload: dict):
     """Generator for llama.cpp streaming responses"""
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
-            async for line in resp.content:
-                if line:
-                    yield line
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+                if resp.status != 200:
+                    error_text = await resp.text()
+                    raise HTTPException(status_code=resp.status, detail=f"llama.cpp error: {error_text}")
+                async for line in resp.content:
+                    if line:
+                        yield line
+    except aiohttp.ClientConnectorError as e:
+        error_msg = f"llama.cpp server not available (is the model loaded?): {str(e)}"
+        print(f"ERROR: {error_msg}")
+        # Send error as SSE
+        yield f"data: {json.dumps({'error': error_msg})}\n\n".encode()
+    except Exception as e:
+        error_msg = f"llama.cpp streaming error: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        yield f"data: {json.dumps({'error': error_msg})}\n\n".encode()
 
 @app.post("/v1/completions")
 async def completions(request: CompletionRequest):
