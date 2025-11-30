@@ -8,6 +8,9 @@ import time
 import aiohttp
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -15,6 +18,15 @@ from vllm.sampling_params import SamplingParams
 from vllm.utils import random_uuid
 
 app = FastAPI(title="Unified LLM Inference Proxy (vLLM + llama.cpp)")
+
+# CORS設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 本番環境では特定のオリジンに制限すべき
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Engine state management
 class EngineState:
@@ -356,6 +368,14 @@ async def health():
         "vllm_loaded": state.vllm_engine is not None,
         "llamacpp_loaded": state.llamacpp_process is not None and state.llamacpp_process.poll() is None
     }
+
+@app.get("/")
+async def root():
+    """フロントエンドのindex.htmlを返す"""
+    frontend_path = os.path.join(os.path.dirname(__file__), "frontend", "index.html")
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
+    return {"message": "Unified LLM Inference Proxy API"}
 
 @app.on_event("shutdown")
 async def shutdown_event():

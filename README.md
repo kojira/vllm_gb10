@@ -25,7 +25,7 @@ NVIDIA Grace Blackwell (GB10 / ARM64) 環境向けに最適化された統合推
 - **ARM64 Support**: GB10 環境での動作を確認済み
 - **OpenAI Compatible API**: 統一されたAPIインターフェース
 - **Offline Load**: ローカルモデルマウントにより認証エラーを回避
-- **Web UI**: モダンなチャットインターフェース（ポート8090）
+- **Web UI**: モダンなチャットインターフェース（統合ポート8080）
 
 ## 必要条件
 
@@ -78,16 +78,9 @@ docker compose logs -f unified-proxy
 
 `Uvicorn running on http://0.0.0.0:8080` と表示されれば起動完了です。
 
-### 4. Web UIの起動（オプション）
+### 4. Web UIへのアクセス
 
-チャットインターフェースを使用する場合、フロントエンドサーバーを起動します。
-
-```bash
-cd frontend
-python3 server.py
-```
-
-ブラウザで `http://localhost:8090` にアクセスすると、チャットUIが表示されます。
+ブラウザで `http://localhost:8080` にアクセスすると、チャットUIが表示されます。
 
 **Web UIの機能:**
 - エンジン選択（vLLM / llama.cpp）
