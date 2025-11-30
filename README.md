@@ -192,6 +192,7 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 | vLLM | **Qwen3-4B-Instruct-FP8** | 36.14 | 36.83 | 36.75 | 36.98 | **36.43** |
 | vLLM | **Qwen3-8B** | 12.87 | 13.06 | 13.13 | 12.97 | **12.94** |
 | vLLM | **TinySwallow-1.5B-Instruct** | 12.89 | 50.25 | 50.03 | 49.98 | **27.36** |
+| llama.cpp | **TinySwallow-1.5B-Instruct-Q8_0-GGUF** | 5.12 | 44.82 | 40.08 | 125.98 | **124.60** |
 
 *注: TPS (Tokens Per Second) = 生成トークン数 / 生成時間*
 
@@ -214,6 +215,7 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 | vLLM | **Qwen3-4B-Instruct-FP8** | 139.04 | 253.17 | 438.30 | 686.90 | **982.30** |
 | vLLM | **Qwen3-8B** | 53.40 | 103.03 | 190.51 | 309.38 | **522.19** |
 | vLLM | **TinySwallow-1.5B-Instruct** | 104.35 | 90.95 | 142.67 | 225.40 | **557.94** |
+| llama.cpp | **TinySwallow-1.5B-Instruct-Q8_0-GGUF** | 135.21 | 155.12 | 133.45 | 170.41 | **220.55** |
 
 *注: Gemma 3n E4B-itの8並列で1リクエスト失敗（タイムアウト）*
 
@@ -222,7 +224,9 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 - **gpt-oss-120b**: 120Bという巨大モデルながら64並列で343 TPSを達成。パラメータ数あたりの効率が非常に高い。
 - **並列効率**: 小型モデル（0.6B, 1.7B）は並列度に対してほぼ線形にスケール。大型モデルは並列度32以降で効率が低下。
 - **FP8量子化**: Qwen3-4B-FP8はFP16版より約1.3倍高速で、並列時は970 TPSを達成。
-- **llama.cpp + GGUF**: `openai_gpt-oss-20b-Q4_K_M`では、vLLMのFP16版と比較してシングルストリームで約2.7倍高速。並列処理ではvLLMがやや優位。
+- **llama.cpp + GGUF**: 
+  - `openai_gpt-oss-20b-Q4_K_M`: vLLMのFP16版と比較してシングルストリームで約2.7倍高速。並列処理ではvLLMがやや優位。
+  - `TinySwallow-1.5B-Instruct-Q8_0`: vLLM版と比較して並列処理は劣る（220 TPS vs 558 TPS）が、メモリ使用量が大幅に削減。
 
 ※ Qwen3 Baseモデルは指示追従ではなく補完を行うため、生成内容はプロンプトの続きとなる傾向があります。
 
