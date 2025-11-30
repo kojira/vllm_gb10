@@ -21,6 +21,11 @@ from vllm.utils import random_uuid
 
 app = FastAPI(title="Unified LLM Inference Proxy (vLLM + llama.cpp)")
 
+print("=" * 60)
+print("🚀 Unified LLM Inference Proxy Server Starting...")
+print("   Hot-reload test: Version 4.0 - HOT RELOAD WORKS!")
+print("=" * 60)
+
 # CORS設定
 app.add_middleware(
     CORSMiddleware,
@@ -326,6 +331,66 @@ async def load_llamacpp_model(model_path: str):
             state.llamacpp_process = None
         raise
 
+async def unload_vllm_model():
+    """Unload vLLM model and free GPU memory"""
+    global state
+    
+    if state.vllm_engine is None:
+        return {"status": "success", "message": "No vLLM model loaded"}
+    
+    print(f"vLLM: Unloading model: {state.vllm_current_model}")
+    del state.vllm_engine
+    gc.collect()
+    torch.cuda.empty_cache()
+    state.vllm_engine = None
+    state.vllm_current_model = None
+    state.vllm_status = "idle"
+    state.vllm_progress = 0.0
+    state.vllm_progress_message = ""
+    print("vLLM: Model unloaded and GPU cache cleared")
+    return {"status": "success", "message": "vLLM model unloaded"}
+
+async def unload_llamacpp_model():
+    """Unload llama.cpp model by stopping the server process"""
+    global state
+    
+    if state.llamacpp_process is None:
+        return {"status": "success", "message": "No llama.cpp model loaded"}
+    
+    print(f"llama.cpp: Stopping server for model: {state.llamacpp_current_model}")
+    try:
+        state.llamacpp_process.send_signal(signal.SIGTERM)
+        state.llamacpp_process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        state.llamacpp_process.kill()
+        state.llamacpp_process.wait()
+    except Exception as e:
+        print(f"llama.cpp: Error stopping process: {e}")
+    
+    state.llamacpp_process = None
+    state.llamacpp_current_model = None
+    state.llamacpp_status = "idle"
+    state.llamacpp_progress = 0.0
+    state.llamacpp_progress_message = ""
+    print("llama.cpp: Server stopped")
+    await asyncio.sleep(1)  # Wait for port to be released
+    return {"status": "success", "message": "llama.cpp model unloaded"}
+
+class UnloadModelRequest(BaseModel):
+    engine: str
+
+@app.post("/v1/models/unload")
+async def unload_model(request: UnloadModelRequest):
+    """Unload a model from the specified engine"""
+    
+    if request.engine not in ["vllm", "llamacpp"]:
+        raise HTTPException(status_code=400, detail="engine must be 'vllm' or 'llamacpp'")
+    
+    if request.engine == "vllm":
+        return await unload_vllm_model()
+    else:  # llamacpp
+        return await unload_llamacpp_model()
+
 @app.post("/v1/models/load")
 async def load_model(request: LoadModelRequest):
     """Load a model on the specified engine"""
@@ -388,8 +453,8 @@ async def vllm_stream_generator(request_id: str, results_generator):
     
     yield "data: [DONE]\n\n"
 
-async def llamacpp_stream_generator(url: str, payload: dict):
-    """Generator for llama.cpp streaming responses"""
+async def llamacpp_stream_generator(url: str, payload: dict, model_name: str):
+    """Generator for llama.cpp streaming responses, converting to OpenAI format"""
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
@@ -398,7 +463,30 @@ async def llamacpp_stream_generator(url: str, payload: dict):
                     raise HTTPException(status_code=resp.status, detail=f"llama.cpp error: {error_text}")
                 async for line in resp.content:
                     if line:
-                        yield line
+                        line_str = line.decode('utf-8').strip()
+                        if line_str.startswith('data: '):
+                            data_str = line_str[6:]
+                            try:
+                                llama_data = json.loads(data_str)
+                                # Convert llama.cpp format to OpenAI format
+                                openai_chunk = {
+                                    "id": f"llamacpp-{int(time.time())}",
+                                    "object": "text_completion",
+                                    "created": int(time.time()),
+                                    "model": model_name,
+                                    "choices": [{
+                                        "text": llama_data.get("content", ""),
+                                        "index": 0,
+                                        "logprobs": None,
+                                        "finish_reason": "stop" if llama_data.get("stop", False) else None
+                                    }]
+                                }
+                                yield f"data: {json.dumps(openai_chunk)}\n\n".encode()
+                                
+                                if llama_data.get("stop", False):
+                                    yield b"data: [DONE]\n\n"
+                            except json.JSONDecodeError:
+                                pass
     except aiohttp.ClientConnectorError as e:
         error_msg = f"llama.cpp server not available (is the model loaded?): {str(e)}"
         print(f"ERROR: {error_msg}")
@@ -498,7 +586,7 @@ async def completions(request: CompletionRequest):
         if request.stream:
             # Streaming response
             return StreamingResponse(
-                llamacpp_stream_generator(url, payload),
+                llamacpp_stream_generator(url, payload, request.model or state.llamacpp_current_model),
                 media_type="text/event-stream"
             )
         else:
@@ -599,4 +687,5 @@ async def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
 

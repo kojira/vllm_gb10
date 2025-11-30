@@ -17,11 +17,16 @@ services:
       - ./.cache:/root/.cache
       # フロントエンド（開発時に即座に反映）
       - ./frontend:/workspace/frontend
+      # サーバーコード（開発時に即座に反映）
+      - ./proxy_server.py:/workspace/proxy_server.py
+      # スクリプト（開発時に即座に反映）
+      - ./scripts:/workspace/scripts
     ports:
       - "8080:8080"
-    # 統合プロキシサーバーを起動
+    # 統合プロキシサーバーを起動（開発時は--reloadで自動リロード）
+    # WATCHFILES_FORCE_POLLING=trueでDockerボリュームマウントでもファイル変更を検知
     command: >
-      /bin/bash -c "uvicorn proxy_server:app --host 0.0.0.0 --port 8080"
+      /bin/bash -c "WATCHFILES_FORCE_POLLING=true uvicorn proxy_server:app --host 0.0.0.0 --port 8080 --reload"
     deploy:
       resources:
         reservations:

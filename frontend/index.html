@@ -646,6 +646,11 @@
                     const assistantMsgId = addMessage('assistant', '');
                     const assistantElement = document.querySelector(`[data-message-id="${assistantMsgId}"] .message-text`);
                     
+                    if (!assistantElement) {
+                        console.error('Assistant element not found!', assistantMsgId);
+                        throw new Error('Failed to create assistant message element');
+                    }
+                    
                     let fullText = '';
                     let tokenCount = 0;
                     const reader = response.body.getReader();
@@ -672,7 +677,7 @@
                                     if (parsed.choices && parsed.choices[0].text) {
                                         const deltaText = parsed.choices[0].text;
                                         fullText += deltaText;
-                                        assistantElement.textContent = fullText;
+                                        assistantElement.innerHTML = escapeHtml(fullText);
                                         tokenCount++;
                                         chatContainer.scrollTop = chatContainer.scrollHeight;
                                     }
@@ -819,9 +824,39 @@
         // 送信ボタン
         sendButton.addEventListener('click', sendMessage);
 
-        // エンジン選択が変更されたらモデルリストを更新
-        engineSelect.addEventListener('change', () => {
+        // モデルアンロード
+        async function unloadModel(engine) {
+            try {
+                const response = await fetch(`${API_BASE}/v1/models/unload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ engine: engine })
+                });
+                
+                if (response.ok) {
+                    console.log(`${engine} model unloaded`);
+                } else {
+                    console.error(`Failed to unload ${engine} model`);
+                }
+            } catch (error) {
+                console.error(`Error unloading ${engine} model:`, error);
+            }
+        }
+
+        // エンジン選択が変更されたらモデルリストを更新し、前のエンジンをアンロード
+        let previousEngine = engineSelect.value;
+        engineSelect.addEventListener('change', async () => {
+            const newEngine = engineSelect.value;
+            
+            // まずUIを更新（即座に反映）
             updateModelOptions();
+            
+            // 前のエンジンのモデルをバックグラウンドでアンロード
+            if (previousEngine !== newEngine) {
+                unloadModel(previousEngine); // awaitしない
+            }
+            
+            previousEngine = newEngine;
             checkStatus();
         });
 

@@ -28,10 +28,9 @@ RUN pip install --no-cache-dir timm einops huggingface_hub[cli] fastapi uvicorn 
 # 作業ディレクトリ
 WORKDIR /workspace
 
-# スクリプトとサーバーコードをコピー
+# scriptsはコピー（ベンチマーク用）
+# proxy_server.pyとfrontendはホストからマウントするのでコピーしない
 COPY scripts/ /workspace/scripts/
-COPY proxy_server.py /workspace/proxy_server.py
-# frontendはホストからマウントする
 
 # デフォルトのコマンドはdocker-composeで上書きするが、CMDとしてはproxy_serverを指定
 CMD ["uvicorn", "proxy_server:app", "--host", "0.0.0.0", "--port", "8080"]
