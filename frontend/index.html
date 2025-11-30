@@ -664,22 +664,16 @@
             checkStatus();
         });
 
-        // モデル選択が変更されたら自動ロード
-        modelSelect.addEventListener('change', async () => {
+        // モデル選択が変更されたらcurrentModelをリセット（ロードはしない）
+        modelSelect.addEventListener('change', () => {
             currentModel = null;
-            const engine = engineSelect.value;
-            const modelPath = modelSelect.value;
-            
-            // 自動ロードを試みる
-            statusText.textContent = 'モデル変更検出...';
-            await loadModel();
+            statusText.textContent = 'モデル未ロード（ロードボタンをクリック）';
         });
 
-        // エンジン選択が変更されたら自動ロード
-        engineSelect.addEventListener('change', async () => {
+        // エンジン選択が変更されたらcurrentModelをリセット（ロードはしない）
+        engineSelect.addEventListener('change', () => {
             currentModel = null;
-            statusText.textContent = 'エンジン変更検出...';
-            await loadModel();
+            statusText.textContent = 'モデル未ロード（ロードボタンをクリック）';
         });
 
         // モデルロードボタン
