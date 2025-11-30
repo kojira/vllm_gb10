@@ -322,6 +322,12 @@
                     <label>Temperature:</label>
                     <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1">
                 </div>
+                <div class="control-group">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="streaming" checked>
+                        ストリーミング
+                    </label>
+                </div>
             </div>
             <div class="status">
                 <div class="status-badge">
@@ -442,6 +448,8 @@
             sendButton.disabled = true;
             const loadingId = addLoadingMessage();
 
+            const useStreaming = document.getElementById('streaming').checked;
+
             try {
                 const startTime = Date.now();
                 const response = await fetch(`${API_BASE}/v1/completions`, {
@@ -452,7 +460,8 @@
                         max_tokens: parseInt(maxTokensInput.value),
                         temperature: parseFloat(temperatureInput.value),
                         engine: engineSelect.value,
-                        model: modelSelect.value
+                        model: modelSelect.value,
+                        stream: useStreaming
                     })
                 });
 
@@ -461,21 +470,73 @@
                     throw new Error(error.detail || '推論に失敗しました');
                 }
 
-                const data = await response.json();
-                const endTime = Date.now();
-                const latency = ((endTime - startTime) / 1000).toFixed(2);
-                const tokens = data.usage.completion_tokens;
-                const tps = (tokens / (latency)).toFixed(2);
+                if (useStreaming) {
+                    // ストリーミング処理
+                    removeLoadingMessage(loadingId);
+                    const assistantMsgId = addMessage('assistant', '');
+                    const assistantElement = document.querySelector(`[data-message-id="${assistantMsgId}"] .message-text`);
+                    
+                    let fullText = '';
+                    let tokenCount = 0;
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    
+                    while (true) {
+                        const {done, value} = await reader.read();
+                        if (done) break;
+                        
+                        buffer += decoder.decode(value, {stream: true});
+                        const lines = buffer.split('\n');
+                        
+                        // Keep the last incomplete line in the buffer
+                        buffer = lines.pop() || '';
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6).trim();
+                                if (data === '[DONE]') break;
+                                
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    if (parsed.choices && parsed.choices[0].text) {
+                                        const deltaText = parsed.choices[0].text;
+                                        fullText += deltaText;
+                                        assistantElement.textContent = fullText;
+                                        tokenCount++;
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    }
+                                } catch (e) {
+                                    console.error('JSON parse error:', e, 'data:', data);
+                                }
+                            }
+                        }
+                    }
+                    
+                    const endTime = Date.now();
+                    const latency = ((endTime - startTime) / 1000).toFixed(2);
+                    const tps = (tokenCount / latency).toFixed(2);
+                    
+                    // メトリクス更新
+                    updateMetrics(tokenCount, latency, tps);
+                } else {
+                    // 非ストリーミング処理
+                    const data = await response.json();
+                    const endTime = Date.now();
+                    const latency = ((endTime - startTime) / 1000).toFixed(2);
+                    const tokens = data.usage.completion_tokens;
+                    const tps = (tokens / (latency)).toFixed(2);
 
-                // ローディング削除
-                removeLoadingMessage(loadingId);
+                    // ローディング削除
+                    removeLoadingMessage(loadingId);
 
-                // アシスタントメッセージ追加
-                addMessage('assistant', data.choices[0].text, {
-                    tokens: tokens,
-                    latency: latency,
-                    tps: tps
-                });
+                    // アシスタントメッセージ追加
+                    addMessage('assistant', data.choices[0].text, {
+                        tokens: tokens,
+                        latency: latency,
+                        tps: tps
+                    });
+                }
             } catch (error) {
                 removeLoadingMessage(loadingId);
                 addErrorMessage(error.message);
@@ -489,7 +550,9 @@
         // メッセージ追加
         function addMessage(role, content, meta = null) {
             const messageDiv = document.createElement('div');
+            const messageId = `msg-${Date.now()}-${Math.random()}`;
             messageDiv.className = `message ${role}`;
+            messageDiv.setAttribute('data-message-id', messageId);
             
             const avatar = role === 'user' ? '👤' : '🤖';
             let metaHtml = '';
@@ -504,13 +567,14 @@
             messageDiv.innerHTML = `
                 <div class="avatar">${avatar}</div>
                 <div>
-                    <div class="message-content">${escapeHtml(content)}</div>
+                    <div class="message-text">${escapeHtml(content)}</div>
                     ${metaHtml}
                 </div>
             `;
 
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageId;
         }
 
         // エラーメッセージ追加
@@ -553,6 +617,19 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        // メトリクス更新
+        function updateMetrics(tokens, latency, tps) {
+            // ステータスバーのメトリクスを更新
+            const statusBadge = document.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.innerHTML = `
+                    <span>⚡ ${tokens} tokens</span>
+                    <span>⏱️ ${latency}s</span>
+                    <span>🚀 ${tps} TPS</span>
+                `;
+            }
         }
 
         // テキストエリア自動リサイズ

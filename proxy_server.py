@@ -5,12 +5,13 @@ import asyncio
 import subprocess
 import signal
 import time
+import json
 import aiohttp
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -239,6 +240,43 @@ async def load_model(request: LoadModelRequest):
         # Wait for completion
         return await state.llamacpp_loading_task
 
+async def vllm_stream_generator(request_id: str, results_generator):
+    """Generator for vLLM streaming responses"""
+    previous_text = ""
+    async for request_output in results_generator:
+        current_text = request_output.outputs[0].text
+        # Send only the delta (new text since last update)
+        delta_text = current_text[len(previous_text):]
+        
+        if delta_text or request_output.outputs[0].finish_reason:
+            chunk = {
+                "id": request_id,
+                "object": "text_completion",
+                "created": int(time.time()),
+                "model": state.vllm_current_model,
+                "choices": [
+                    {
+                        "text": delta_text,
+                        "index": 0,
+                        "logprobs": None,
+                        "finish_reason": request_output.outputs[0].finish_reason
+                    }
+                ]
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+        
+        previous_text = current_text
+    
+    yield "data: [DONE]\n\n"
+
+async def llamacpp_stream_generator(url: str, payload: dict):
+    """Generator for llama.cpp streaming responses"""
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+            async for line in resp.content:
+                if line:
+                    yield line
+
 @app.post("/v1/completions")
 async def completions(request: CompletionRequest):
     """Generate completions using the specified engine"""
@@ -263,34 +301,42 @@ async def completions(request: CompletionRequest):
         
         results_generator = state.vllm_engine.generate(request.prompt, sampling_params, request_id)
         
-        final_output = None
-        async for request_output in results_generator:
-            final_output = request_output
-        
-        if final_output is None:
-            raise HTTPException(status_code=500, detail="Generation failed")
-        
-        text_output = final_output.outputs[0].text
-        
-        return {
-            "id": request_id,
-            "object": "text_completion",
-            "created": int(time.time()),
-            "model": request.model or state.vllm_current_model,
-            "choices": [
-                {
-                    "text": text_output,
-                    "index": 0,
-                    "logprobs": None,
-                    "finish_reason": final_output.outputs[0].finish_reason
+        if request.stream:
+            # Streaming response
+            return StreamingResponse(
+                vllm_stream_generator(request_id, results_generator),
+                media_type="text/event-stream"
+            )
+        else:
+            # Non-streaming response
+            final_output = None
+            async for request_output in results_generator:
+                final_output = request_output
+            
+            if final_output is None:
+                raise HTTPException(status_code=500, detail="Generation failed")
+            
+            text_output = final_output.outputs[0].text
+            
+            return {
+                "id": request_id,
+                "object": "text_completion",
+                "created": int(time.time()),
+                "model": request.model or state.vllm_current_model,
+                "choices": [
+                    {
+                        "text": text_output,
+                        "index": 0,
+                        "logprobs": None,
+                        "finish_reason": final_output.outputs[0].finish_reason
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": len(final_output.prompt_token_ids),
+                    "completion_tokens": len(final_output.outputs[0].token_ids),
+                    "total_tokens": len(final_output.prompt_token_ids) + len(final_output.outputs[0].token_ids)
                 }
-            ],
-            "usage": {
-                "prompt_tokens": len(final_output.prompt_token_ids),
-                "completion_tokens": len(final_output.outputs[0].token_ids),
-                "total_tokens": len(final_output.prompt_token_ids) + len(final_output.outputs[0].token_ids)
             }
-        }
     
     else:  # llamacpp
         # Forward to llama.cpp server
@@ -306,44 +352,54 @@ async def completions(request: CompletionRequest):
             "n_predict": request.max_tokens,
             "temperature": request.temperature,
             "top_p": request.top_p,
-            "stream": False
+            "stream": request.stream
         }
         
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"http://127.0.0.1:{state.llamacpp_port}/completion",
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=300)
-                ) as resp:
-                    if resp.status != 200:
-                        text = await resp.text()
-                        raise HTTPException(status_code=resp.status, detail=f"llama.cpp error: {text}")
-                    
-                    result = await resp.json()
-                    
-                    # Convert to OpenAI format
-                    return {
-                        "id": f"llamacpp-{int(time.time())}",
-                        "object": "text_completion",
-                        "created": int(time.time()),
-                        "model": request.model or state.llamacpp_current_model,
-                        "choices": [
-                            {
-                                "text": result.get("content", ""),
-                                "index": 0,
-                                "logprobs": None,
-                                "finish_reason": "stop" if result.get("stop", False) else "length"
+        url = f"http://127.0.0.1:{state.llamacpp_port}/completion"
+        
+        if request.stream:
+            # Streaming response
+            return StreamingResponse(
+                llamacpp_stream_generator(url, payload),
+                media_type="text/event-stream"
+            )
+        else:
+            # Non-streaming response
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        url,
+                        json=payload,
+                        timeout=aiohttp.ClientTimeout(total=300)
+                    ) as resp:
+                        if resp.status != 200:
+                            text = await resp.text()
+                            raise HTTPException(status_code=resp.status, detail=f"llama.cpp error: {text}")
+                        
+                        result = await resp.json()
+                        
+                        # Convert to OpenAI format
+                        return {
+                            "id": f"llamacpp-{int(time.time())}",
+                            "object": "text_completion",
+                            "created": int(time.time()),
+                            "model": request.model or state.llamacpp_current_model,
+                            "choices": [
+                                {
+                                    "text": result.get("content", ""),
+                                    "index": 0,
+                                    "logprobs": None,
+                                    "finish_reason": "stop" if result.get("stop", False) else "length"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": result.get("tokens_evaluated", 0),
+                                "completion_tokens": result.get("tokens_predicted", 0),
+                                "total_tokens": result.get("tokens_evaluated", 0) + result.get("tokens_predicted", 0)
                             }
-                        ],
-                        "usage": {
-                            "prompt_tokens": result.get("tokens_evaluated", 0),
-                            "completion_tokens": result.get("tokens_predicted", 0),
-                            "total_tokens": result.get("tokens_evaluated", 0) + result.get("tokens_predicted", 0)
                         }
-                    }
-        except aiohttp.ClientError as e:
-            raise HTTPException(status_code=503, detail=f"llama.cpp communication error: {str(e)}")
+            except aiohttp.ClientError as e:
+                raise HTTPException(status_code=503, detail=f"llama.cpp communication error: {str(e)}")
 
 @app.get("/v1/status")
 async def get_status():
