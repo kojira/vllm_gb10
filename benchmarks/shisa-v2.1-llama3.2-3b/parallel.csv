@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+shisa-v2.1-llama3.2-3b,4,55.03,4,0,5821,105.77,52.19,47.95,55.03
+shisa-v2.1-llama3.2-3b,8,59.13,8,0,11310,191.28,54.41,40.76,59.11
+shisa-v2.1-llama3.2-3b,16,66.81,16,0,22323,334.15,60.52,43.00,66.81
+shisa-v2.1-llama3.2-3b,32,90.24,32,0,45638,505.73,83.64,53.38,90.24
+shisa-v2.1-llama3.2-3b,64,140.02,64,0,91823,655.79,131.14,95.58,140.02

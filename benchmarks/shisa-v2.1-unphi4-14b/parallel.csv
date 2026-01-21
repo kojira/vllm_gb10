@@ -1,0 +1,3 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+shisa-v2.1-unphi4-14b,4,209.16,4,0,6144,29.37,209.16,209.16,209.16
+shisa-v2.1-unphi4-14b,8,218.05,8,0,12288,56.36,218.05,218.05,218.05

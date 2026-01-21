@@ -96,11 +96,12 @@ def download_model(model_id: str, hf_token: str = None) -> bool:
         return False
 
 async def load_model(session: aiohttp.ClientSession, model_path: str, api_base: str, engine: str) -> bool:
-    """モデルをロード"""
+    """モデルをロード（完了まで待機）"""
     print(f"\nLoading model: {model_path} on {engine} engine...")
     start = time.time()
     timeout = aiohttp.ClientTimeout(total=1800)  # 30分
     try:
+        # ロードリクエストを送信
         async with session.post(
             f"{api_base}/v1/models/load",
             json={"model_path": model_path, "engine": engine},
@@ -111,9 +112,38 @@ async def load_model(session: aiohttp.ClientSession, model_path: str, api_base: 
                 print(f"Failed to load model: {text}")
                 return False
             result = await resp.json()
-            elapsed = time.time() - start
-            print(f"Model loaded in {elapsed:.2f}s")
-            return True
+            print(f"Load request sent: {result.get('status', 'unknown')}")
+        
+        # モデルがロードされるまでポーリング
+        print("Waiting for model to be ready...")
+        max_wait = 1800  # 30分
+        poll_interval = 5
+        while time.time() - start < max_wait:
+            try:
+                async with session.get(f"{api_base}/v1/status", timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        status = await resp.json()
+                        engine_status = status.get(engine, {})
+                        current_status = engine_status.get("status", "unknown")
+                        progress = engine_status.get("progress", 0)
+                        progress_msg = engine_status.get("progress_message", "")
+                        
+                        if current_status == "loaded":
+                            elapsed = time.time() - start
+                            print(f"Model loaded successfully in {elapsed:.2f}s")
+                            return True
+                        elif current_status == "error":
+                            print(f"Model loading failed: {progress_msg}")
+                            return False
+                        else:
+                            print(f"  Status: {current_status}, Progress: {progress*100:.0f}% - {progress_msg}")
+            except Exception as e:
+                print(f"  Status check failed: {e}")
+            
+            await asyncio.sleep(poll_interval)
+        
+        print("Timeout waiting for model to load")
+        return False
     except Exception as e:
         print(f"Error loading model: {e}")
         return False
@@ -211,20 +241,20 @@ async def run_single_stream_benchmark(
                 latency_ms = result["latency"] * 1000
                 tps = result["tokens"] / result["latency"] if result["latency"] > 0 else 0
                 pbar.write(f"  {target_tokens} tokens: {result['tokens']} generated, {tps:.2f} TPS")
-            
-            with open(single_csv, 'a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow([
-                    model_name,
-                    target_tokens,
-                    result["tokens"],
-                    latency_ms,
-                    tps,
-                    prompt_text,
-                    result["text"]
-                ])
-        else:
-            print(f"    Failed: {result.get('error', 'Unknown error')}")
+                
+                with open(single_csv, 'a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([
+                        model_name,
+                        target_tokens,
+                        result["tokens"],
+                        latency_ms,
+                        tps,
+                        prompt_text,
+                        result.get("text", "")
+                    ])
+            else:
+                pbar.write(f"  {target_tokens} tokens: Failed - {result.get('error', 'Unknown error')}")
     
     print(f"\n✓ Single stream results saved to {single_csv}")
     return True

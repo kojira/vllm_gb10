@@ -1,4 +1,5 @@
 services:
+  # バックエンド（vLLM + llama.cpp）
   unified-proxy:
     build:
       context: .
@@ -17,20 +18,21 @@ services:
       - ./models:/workspace/models
       # Hugging Faceキャッシュ
       - ./.cache:/root/.cache
-      # フロントエンド（開発時に即座に反映）
-      - ./frontend:/workspace/frontend
-      # サーバーコード（開発時に即座に反映）
-      - ./proxy_server.py:/workspace/proxy_server.py
-      # スクリプト（開発時に即座に反映）
+      # バックエンドコード（開発時に即座に反映）
+      - ./backend:/workspace/backend
+      # スクリプト
       - ./scripts:/workspace/scripts
       # データベース（会話履歴）
       - ./data:/workspace/data
+      # ベンチマーク結果
+      - ./benchmarks:/workspace/benchmarks
+      # 旧フロントエンド（互換性のため）
+      - ./frontend:/workspace/frontend
     ports:
-      - "8080:8080"
+      - "8081:8081"
     # 統合プロキシサーバーを起動（開発時は--reloadで自動リロード）
-    # WATCHFILES_FORCE_POLLING=trueでDockerボリュームマウントでもファイル変更を検知
     command: >
-      /bin/bash -c "WATCHFILES_FORCE_POLLING=true uvicorn proxy_server:app --host 0.0.0.0 --port 8080 --reload"
+      /bin/bash -c "WATCHFILES_FORCE_POLLING=true uvicorn backend.main:app --host 0.0.0.0 --port 8081 --reload"
     deploy:
       resources:
         reservations:
@@ -38,3 +40,20 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  # フロントエンド（React + Express）
+  frontend:
+    build:
+      context: ./frontend-react
+      dockerfile: Dockerfile
+    container_name: llm-chat-frontend
+    restart: unless-stopped
+    environment:
+      - API_TARGET=http://unified-proxy:8081
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - unified-proxy
+    profiles:
+      - frontend

@@ -23,14 +23,14 @@ RUN git clone https://github.com/ggerganov/llama.cpp.git && \
     cmake --build build --config Release -j$(nproc) --target llama-server
 
 # 必要なPythonライブラリを追加
-RUN pip install --no-cache-dir timm einops huggingface_hub[cli] fastapi uvicorn aiohttp
+RUN pip install --no-cache-dir timm einops huggingface_hub[cli] fastapi uvicorn aiohttp watchfiles
 
 # 作業ディレクトリ
 WORKDIR /workspace
 
 # scriptsはコピー（ベンチマーク用）
-# proxy_server.pyとfrontendはホストからマウントするのでコピーしない
+# backendとfrontendはホストからマウントするのでコピーしない
 COPY scripts/ /workspace/scripts/
 
-# デフォルトのコマンドはdocker-composeで上書きするが、CMDとしてはproxy_serverを指定
-CMD ["uvicorn", "proxy_server:app", "--host", "0.0.0.0", "--port", "8080"]
+# デフォルトのコマンドはdocker-composeで上書きするが、CMDとしてはbackend.mainを指定
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]

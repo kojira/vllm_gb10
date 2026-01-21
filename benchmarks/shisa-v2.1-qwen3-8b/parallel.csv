@@ -1,0 +1,5 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+shisa-v2.1-qwen3-8b,4,120.80,4,0,6144,50.86,120.80,120.80,120.80
+shisa-v2.1-qwen3-8b,8,132.64,8,0,12288,92.64,132.64,132.63,132.64
+shisa-v2.1-qwen3-8b,16,150.62,16,0,24576,163.17,150.62,150.62,150.62
+shisa-v2.1-qwen3-8b,32,223.68,32,0,49098,219.50,223.45,216.44,223.68

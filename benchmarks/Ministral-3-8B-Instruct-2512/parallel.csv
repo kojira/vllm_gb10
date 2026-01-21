@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+Ministral-3-8B-Instruct-2512,4,78.54,4,0,6144,78.23,78.54,78.54,78.54
+Ministral-3-8B-Instruct-2512,8,84.02,8,0,12288,146.26,84.02,84.02,84.02
+Ministral-3-8B-Instruct-2512,16,94.71,16,0,24576,259.49,94.70,94.70,94.71
+Ministral-3-8B-Instruct-2512,32,121.49,32,0,49152,404.59,121.49,121.48,121.49
+Ministral-3-8B-Instruct-2512,64,169.17,64,0,98304,581.10,169.17,169.17,169.17

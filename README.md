@@ -205,6 +205,11 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 | vLLM | **Qwen3-8B** | 12.87 | 13.06 | 13.13 | 12.97 | **12.94** |
 | vLLM | **TinySwallow-1.5B-Instruct** | 12.89 | 50.25 | 50.03 | 49.98 | **27.36** |
 | llama.cpp | **TinySwallow-1.5B-Instruct-Q8_0-GGUF** | 5.12 | 44.82 | 40.08 | 125.98 | **124.60** |
+| vLLM | **shisa-v2.1-llama3.2-3b** | 23.88 | 24.53 | 24.33 | 24.71 | **24.63** |
+| vLLM | **shisa-v2.1-qwen3-8b** | 11.49 | 12.74 | 12.69 | 12.60 | **12.58** |
+| vLLM | **shisa-v2.1-unphi4-14b** | 5.28 | 7.74 | 7.76 | 7.83 | **7.82** |
+| vLLM | **Ministral-3-8B-Instruct-2512** | 20.94 | 20.20 | 20.42 | 20.60 | **20.54** |
+| Transformers | **ELYZA-Diffusion-Instruct-7B (steps=32)** | 30.04 | 49.78 | 64.57 | 69.18 | **70.26** |
 
 *注: TPS (Tokens Per Second) = 生成トークン数 / 生成時間*
 
@@ -228,6 +233,10 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 | vLLM | **Qwen3-8B** | 53.40 | 103.03 | 190.51 | 309.38 | **522.19** |
 | vLLM | **TinySwallow-1.5B-Instruct** | 104.35 | 90.95 | 142.67 | 225.40 | **557.94** |
 | llama.cpp | **TinySwallow-1.5B-Instruct-Q8_0-GGUF** | 135.21 | 155.12 | 133.45 | 170.41 | **220.55** |
+| vLLM | **shisa-v2.1-llama3.2-3b** | 105.77 | 191.28 | 334.15 | 505.73 | **655.79** |
+| vLLM | **shisa-v2.1-qwen3-8b** | 50.86 | 92.64 | 163.17 | 219.50 | - |
+| vLLM | **shisa-v2.1-unphi4-14b** | 29.37 | 56.36 | - | - | - |
+| vLLM | **Ministral-3-8B-Instruct-2512** | 78.23 | 146.26 | 259.49 | 404.59 | **581.10** |
 
 **主な知見:**
 - **Qwen3-0.6B**: 64並列で1639 TPSと圧倒的なスループット。小型モデルの並列処理性能の高さを示す。
@@ -237,8 +246,62 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 - **llama.cpp + GGUF**: 
   - `openai_gpt-oss-20b-Q4_K_M`: vLLMのFP16版と比較してシングルストリームで約2.7倍高速。並列処理ではvLLMがやや優位。
   - `TinySwallow-1.5B-Instruct-Q8_0`: vLLM版と比較して並列処理は劣る（220 TPS vs 558 TPS）が、メモリ使用量が大幅に削減。
+- **Shisa V2.1シリーズ**: 日本語特化モデル。llama3.2-3bは3Bながら655 TPSの高スループットを達成。
+- **ELYZA-Diffusion**: Diffusion Language Modelは従来のAutoregressive LLMとは異なるアーキテクチャ。steps=32で70 TPSを達成するが、長文生成（1024トークン以上）では品質が低下する傾向あり。vLLMではなくTransformersの`diffusion_generate`を使用。
 
 ※ Qwen3 Baseモデルは指示追従ではなく補完を行うため、生成内容はプロンプトの続きとなる傾向があります。
+
+#### 日本語生成品質評価
+
+各モデルの日本語生成能力を、同一プロンプト（「人工知能（AI）とは何か、小学生にもわかるように説明してください」）で評価しました。
+
+| Engine | Model | 品質 | 評価コメント |
+|:-------|:------|:----:|:-------------|
+| vLLM | **Ministral-3-8B-Instruct** | ⭐⭐⭐ | 口語的で親しみやすい説明、具体例が豊富 |
+| vLLM | **shisa-v2.1-llama3.2-3b** | ⭐⭐⭐ | 比喩を使った分かりやすい説明、Markdown活用 |
+| vLLM | **Gemma-2-Llama-Swallow-2b** | ⭐⭐⭐ | 箇条書きで具体例を列挙、構造化された回答 |
+| vLLM | **Gemma 3n E2B-it** | ⭐⭐⭐ | 学習・パターン認識・予測と段階的に説明 |
+| vLLM | **Gemma 3n E2B-it FP8** | ⭐⭐⭐ | E2Bと同等品質、FP8でも品質劣化なし |
+| vLLM | **shisa-v2.1-unphi4-14b** | ⭐⭐⭐ | 具体例（写真認識、ゲーム）を含む正確な説明 |
+| vLLM | **Qwen3-4B-Instruct-FP8** | ⭐⭐☆ | 「コンピュータの脳」という分かりやすい比喩 |
+| vLLM | **shisa-v2.1-qwen3-8b** | ⭐⭐☆ | 「お手伝いさん」の比喩は良いが、会話が続く癖あり |
+| Transformers | **ELYZA-Diffusion-Instruct** | ⭐⭐☆ | 内容は正確だが「言葉をしたり」など文法的違和感 |
+| vLLM | **Gemma 3n E4B-it** | ⭐⭐☆ | 簡潔すぎる一言回答（「考える力を教えること」） |
+| vLLM | **Qwen3-0.6B** | ⭐⭐☆ | 質問を繰り返してから回答する傾向 |
+| vLLM | **Qwen3-1.7B** | ⭐⭐☆ | 質問を繰り返す傾向、内容は正確 |
+| vLLM | **Qwen3-4B-Instruct** | ⭐⭐☆ | 質問を繰り返す傾向、内容は正確 |
+| vLLM | **Qwen3-8B** | ⭐⭐☆ | 質問を繰り返す傾向、内容は正確 |
+| vLLM | **gpt-oss-120b** | ⭐☆☆ | 日本語で開始するが途中で英語に切り替わる |
+| vLLM | **gpt-oss-20b** | ⭐☆☆ | 回答が脱線しやすい、内容が不安定 |
+| vLLM | **TinySwallow-1.5B-Instruct** | ⭐☆☆ | 回答生成されず（空出力） |
+| llama.cpp | **TinySwallow-1.5B-Q8_0-GGUF** | ⭐☆☆ | 質問を繰り返すだけで回答しない |
+| vLLM | **shisa-v2.1-lfm2-1.2b** | ❌ | 出力が完全に崩壊（意味不明な文字列の繰り返し） |
+
+**品質評価基準:**
+- ⭐⭐⭐: 優秀 - 正確で分かりやすく、構造化された回答
+- ⭐⭐☆: 良好 - 内容は正確だが、やや癖がある
+- ⭐☆☆: 要改善 - 回答が不完全または不安定
+- ❌: 使用不可 - 出力が破綻
+
+**推奨モデル（日本語用途）:**
+1. **shisa-v2.1-llama3.2-3b** - 速度と品質のベストバランス（24 TPS）
+2. **Ministral-3-8B-Instruct** - 最高品質の日本語（20 TPS）
+3. **Gemma-2-Llama-Swallow-2b** - 2Bながら高品質（30 TPS）
+
+#### 非対応モデル
+
+以下のモデルはvLLMで正常に動作しませんでした：
+
+| Model | 原因 |
+|:------|:-----|
+| **shisa-ai/shisa-v2.1-lfm2-1.2b** | `lfm2`（Liquid Foundation Model）アーキテクチャがvLLM未対応。ロードは成功するが出力が破綻 |
+| **elyza/ELYZA-Diffusion-*-Dream-7B** | Diffusion Language ModelはvLLM非対応。Transformersの`diffusion_generate`で動作 |
+
+#### 特殊設定が必要なモデル
+
+| Model | 設定 |
+|:------|:-----|
+| **mistralai/Ministral-*-Instruct-2512** | `--tokenizer_mode mistral --config_format mistral --load_format mistral` が必要（自動検出済み） |
 
 ## API仕様
 
