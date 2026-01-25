@@ -70,7 +70,7 @@ def _load_vllm_model_sync(model_path: str, dtype: str, gpu_memory_utilization: f
             trust_remote_code=True,
             enforce_eager=True
         )
-    return AsyncLLMEngine.from_engine_args(engine_args)
+        return AsyncLLMEngine.from_engine_args(engine_args)
 
 
 async def load_vllm_model(model_path: str, dtype: str, gpu_memory_utilization: float, max_model_len: int):
@@ -237,10 +237,21 @@ async def generate_vllm_completion(
         from .utils import apply_chat_template
         formatted_prompt = apply_chat_template(prompt, state.vllm_current_model)
     
+    # Determine stop tokens based on model type
+    model_name_lower = state.vllm_current_model.lower() if state.vllm_current_model else ""
+    stop_tokens = None
+    if "lfm2" in model_name_lower or "lfm-2" in model_name_lower:
+        stop_tokens = ["<|im_end|>", "<|endoftext|>"]
+    elif "qwen" in model_name_lower and "instruct" in model_name_lower:
+        stop_tokens = ["<|im_end|>", "<|endoftext|>"]
+    elif "gemma" in model_name_lower:
+        stop_tokens = ["<end_of_turn>"]
+    
     sampling_params = SamplingParams(
         max_tokens=max_tokens,
         temperature=temperature,
-        top_p=top_p
+        top_p=top_p,
+        stop=stop_tokens
     )
     
     request_id = random_uuid()

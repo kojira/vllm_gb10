@@ -55,8 +55,12 @@ def apply_chat_template(prompt: str, model_path: str) -> str:
     """Apply appropriate chat template based on model type"""
     model_name_lower = model_path.lower()
     
+    # LFM2.5 format (ChatML with bos_token)
+    if "lfm2" in model_name_lower or "lfm-2" in model_name_lower:
+        return f"<|startoftext|><|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+    
     # Gemma format
-    if "gemma" in model_name_lower:
+    elif "gemma" in model_name_lower:
         return f"<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
     
     # Qwen format (if instruct)
@@ -76,8 +80,19 @@ def build_vllm_prompt_with_history(messages: List[Dict], model_path: str) -> str
     """Build a prompt with conversation history for vLLM"""
     model_name_lower = model_path.lower()
     
+    # LFM2.5 format (ChatML with bos_token)
+    if "lfm2" in model_name_lower or "lfm-2" in model_name_lower:
+        prompt_parts = ["<|startoftext|>"]
+        for msg in messages:
+            if msg["role"] == "user":
+                prompt_parts.append(f"<|im_start|>user\n{msg['content']}<|im_end|>")
+            elif msg["role"] == "assistant":
+                prompt_parts.append(f"<|im_start|>assistant\n{msg['content']}<|im_end|>")
+        prompt_parts.append("<|im_start|>assistant\n")
+        return "\n".join(prompt_parts)
+    
     # Gemma format
-    if "gemma" in model_name_lower:
+    elif "gemma" in model_name_lower:
         prompt_parts = []
         for msg in messages:
             if msg["role"] == "user":

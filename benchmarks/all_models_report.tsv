@@ -1,0 +1,162 @@
+# 全モデル総合レポート（最終版）
+# 実施日: 2026-01-22
+# 環境: vLLM v25.12 / llama.cpp / Transformers / Gemini API
+# テスト: 指示追従性29項目 + シングルストリームTPS
+
+## 1. モデル別総合ランキング（指示追従率順）
+
+rank	model	type	engine	params	instruction_rate	tps	grade	comment
+1	Qwen3-4B-Instruct-2507-FP8	local	vLLM	4B	100.0%	38.9	S	全テスト合格。FP8で高速化。最もバランス良い
+2	Qwen3-4B-Instruct-2507	local	vLLM	4B	100.0%	21.0	S	非FP8版も全テスト合格
+3	gemini-3-pro-preview	API	Gemini	-	93.1%	26.4	A+	思考モードで高品質。27/29合格
+4	gemma-3n-E4B-it	local	vLLM	4B	86.2%	17.5	A	4B版。ロールプレイ100%
+5	TinySwallow-1.5B-Instruct	local	vLLM	1.5B	86.2%	53.9	A	超軽量で高品質・高速
+6	gemini-2.5-flash-lite	API	Gemini	-	82.8%	122.7	A	API最速。コスト効率最高
+7	gemma-3n-E2B-it	local	vLLM	2B	82.8%	29.1	A	2Bで高性能
+8	Gemma-2-Llama-Swallow-2b	local	vLLM	2B	82.8%	30.3	A	日本語特化。ロールプレイ100%
+9	shisa-v2.1-llama3.2-3b	local	vLLM	3B	82.8%	26.1	A	人格維持優秀
+10	TinySwallow-Q8_0-GGUF	local	llama.cpp	1.5B	75.9%	124.6	B+	GGUF量子化版。vLLM版(86.2%)より低下
+11	gemini-3-flash-preview	API	Gemini	-	75.9%	13.4	B+	安全性・人格100%
+12	shisa-v2.1-qwen3-8b	local	vLLM	8B	75.9%	12.6	B+	複合指示に弱点
+13	shisa-v2.1-lfm2-1.2b	local	vLLM	1.2B	72.4%	-	B	超軽量1.2B
+14	Qwen3-8B	local	vLLM	8B	69.0%	13.3	B	FP8版推奨
+15	gemini-2.5-flash	API	Gemini	-	65.5%	4.7	B-	思考モードで低速
+16	Ministral-3-8B-Instruct	local	vLLM	8B	65.5%	19.6	B-	視点・複合に課題
+17	Qwen3-1.7B	local	vLLM	1.7B	58.6%	43.7	C+	小型ベースモデル
+18	gpt-oss-20b-Q8_0-GGUF	local	llama.cpp	20B	51.7%	-	C	GGUF Q8量子化版
+19	gpt-oss-20b	local	vLLM	20B	41.4%	42.6	C	vLLM版。ロールプレイ全滅
+20	Qwen3-0.6B	local	vLLM	0.6B	41.4%	100.8	C	超小型。速度重視向け
+21	ELYZA-Diffusion	local	Transformers	7B	34.5%	70.0	C-	Diffusionモデル。ロールプレイ全滅
+22	gpt-oss-120b	local	vLLM	120B	27.6%	30.9	D	120B巨大モデル。ロールプレイ全滅
+23	gemma-3n-E2B-FP8-dynamic	local	vLLM	2B	17.2%	40.8	D	動的量子化で品質低下
+24	shisa-v2.1-unphi4-14b	local	vLLM	14B	17.2%	7.8	D	フォーマット・単語のみ。ロールプレイ全滅
+
+## 2. TPS（推論速度）ランキング
+
+rank	model	type	engine	tps	instruction_rate	comment
+1	TinySwallow-Q8_0-GGUF	local	llama.cpp	124.6	75.9%	GGUF最速
+2	gemini-2.5-flash-lite	API	Gemini	122.7	82.8%	API最速
+3	Qwen3-0.6B	local	vLLM	100.8	41.4%	超高速だが品質低め
+4	ELYZA-Diffusion	local	Transformers	70.0	34.5%	Diffusionモデル
+5	TinySwallow-1.5B-Instruct	local	vLLM	53.9	86.2%	品質・速度両立
+6	Qwen3-1.7B	local	vLLM	43.7	58.6%	高速小型
+7	gpt-oss-20b	local	vLLM	42.6	41.4%	20Bで高速
+8	gemma-3n-E2B-FP8-dynamic	local	vLLM	40.8	17.2%	高速だが品質低下
+9	Qwen3-4B-Instruct-2507-FP8	local	vLLM	38.9	100.0%	最高バランス
+10	gpt-oss-120b	local	vLLM	30.9	27.6%	120Bで30TPS
+11	Gemma-2-Llama-Swallow-2b	local	vLLM	30.3	82.8%	日本語特化
+12	gemma-3n-E2B-it	local	vLLM	29.1	82.8%	2B最高バランス
+13	gemini-3-pro-preview	API	Gemini	26.4	93.1%	思考モードあり
+14	shisa-v2.1-llama3.2-3b	local	vLLM	26.1	82.8%	日本語特化
+15	Qwen3-4B-Instruct-2507	local	vLLM	21.0	100.0%	非FP8版
+16	Ministral-3-8B-Instruct	local	vLLM	19.6	65.5%	8B標準
+17	gemma-3n-E4B-it	local	vLLM	17.5	86.2%	4B版
+18	gemini-3-flash-preview	API	Gemini	13.4	75.9%	安定品質
+19	Qwen3-8B	local	vLLM	13.3	69.0%	FP8版推奨
+20	shisa-v2.1-qwen3-8b	local	vLLM	12.6	75.9%	複合指示に弱点
+21	shisa-v2.1-unphi4-14b	local	vLLM	7.8	17.2%	大型だが低品質
+22	gemini-2.5-flash	API	Gemini	4.7	65.5%	思考モードで低速
+
+## 3. 指示追従性カテゴリ別分析
+
+category	best_models	best_rate	avg_rate	hardest_test	comment
+フォーマット	Qwen3-4B系・gemma系等	100%	74.5%	JSON出力	小型モデル（0.6B-1.7B）で失敗しがち
+文字数制限	Qwen3-4B系・TinySwallow	100%	35.3%	50文字ちょうど	厳密な文字数制御は高難度
+単語制約	多数	100%	70.6%	単語を含まない	除外指示は包含より難しい
+言語制約	大半	100%	82.4%	英語禁止	小型・動的量子化で失敗
+構造	Qwen3-4B系・多数	100%	52.9%	3部構成	見出し付き構造化は中難度
+視点	Qwen3-4B系・多数	100%	82.4%	子供向け説明	視点切替は比較的容易
+数量	全モデル	100%	100%	5つだけ列挙	数量制限は全モデル対応可
+複合	Qwen3-4B系・TinySwallow・gemma-4B	100%	47.1%	複数条件同時	複合指示は高難度
+安全性	Qwen3-4B系・gemini-3-flash	100%	64.7%	脱獄試行	モデルにより大差
+人格	Qwen3-4B系・gemini-3-flash等	100%	52.9%	不確実情報	人格維持は高難度
+ロールプレイ	Qwen3-4B系・Swallow系・gemma-4B	100%	74.3%	キャラ維持	関西弁・侍は比較的容易
+
+## 4. 用途別推奨モデル
+
+use_case	recommended_model	tps	instruction_rate	reason
+汎用最強	Qwen3-4B-Instruct-2507-FP8	38.9	100.0%	全指示100%対応。FP8で高速
+高速バッチ	gemini-2.5-flash-lite	122.7	82.8%	122.7TPSで大量処理向け
+超軽量デバイス	TinySwallow-1.5B-Instruct	53.9	86.2%	1.5Bで86%・54TPS。最高効率
+軽量デバイス	gemma-3n-E2B-it	29.1	82.8%	2Bで82.8%
+日本語特化	shisa-v2.1-llama3.2-3b	26.1	82.8%	人格維持と日本語品質優秀
+ロールプレイ	Gemma-2-Llama-Swallow-2b	30.3	82.8%	ロールプレイ100%
+安全性重視	gemini-3-flash-preview	13.4	75.9%	安全性・人格100%
+高品質API	gemini-3-pro-preview	26.4	93.1%	思考モードで高品質
+大規模推論	gpt-oss-120b	30.9	27.6%	120Bで30TPSは効率的
+超高速処理	Qwen3-0.6B	100.8	41.4%	品質より速度重視時
+
+## 5. 主要な発見と考察
+
+### 5.1 モデルサイズと品質の関係
+finding	detail
+小型でも高品質可能	TinySwallow-1.5B（86.2%）とgemma-3n-E2B（82.8%）が証明
+Instructチューニング効果	Qwen3-4B-Instruct（100%）vs Qwen3-1.7B（58.6%）で大差
+大型が必ずしも優位でない	shisa-14B（17.2%）＜ TinySwallow-1.5B（86.2%）
+FP8量子化は品質維持	Qwen3-4B-FP8とQwen3-4Bは共に100%
+
+### 5.2 パラメータ効率ランキング（品質/サイズ）
+rank	model	params	rate	efficiency
+1	TinySwallow-1.5B-Instruct	1.5B	86.2%	57.5%/B
+2	gemma-3n-E2B-it	2B	82.8%	41.4%/B
+3	Qwen3-4B-Instruct	4B	100.0%	25.0%/B
+4	shisa-v2.1-llama3.2-3b	3B	82.8%	27.6%/B
+5	gemma-3n-E4B-it	4B	86.2%	21.6%/B
+
+### 5.3 エンジン別特性
+engine	strength	weakness	best_for
+vLLM v25.12	並列処理優秀、FP8対応	初回ロードが遅い	本番環境
+llama.cpp	GGUF量子化でVRAM節約	並列処理でvLLMに劣る	メモリ制約環境
+Transformers	Diffusionモデル対応	従来LLMはvLLMより遅い	特殊モデル
+Gemini API	超高速（122TPS）	コスト、プライバシー	プロトタイプ
+
+### 5.4 Gemini APIモデル比較
+model	tps	instruction_rate	characteristic
+gemini-2.5-flash-lite	122.7	82.8%	最速・コスト効率最高
+gemini-3-pro-preview	26.4	93.1%	最高品質。思考モードあり
+gemini-3-flash-preview	13.4	75.9%	安定・安全性100%
+gemini-2.5-flash	4.7	65.5%	思考モードで低速
+
+### 5.5 総合結論
+rank	conclusion
+1	ローカル最強はQwen3-4B-Instruct-2507-FP8。100%合格・38.9TPSで死角なし
+2	超軽量最強はTinySwallow-1.5B-Instruct。1.5Bで86.2%・53.9TPSは驚異的効率
+3	API最高品質はgemini-3-pro-preview。93.1%で思考モードによる高品質応答
+4	API最高速はgemini-2.5-flash-lite。122.7TPS・82.8%でバッチ処理に最適
+5	日本語特化ならshisa-v2.1-llama3.2-3b。人格維持と日本語品質が優秀
+6	小型モデル（0.6B-1.7B）はInstructチューニング有無で大差。ベースモデルは品質低め
+
+## 6. テスト対象外・エラーのモデル
+
+model	status	note
+shisa-v2.1-unphi4-14b	テスト完了	17.2%（5/29）フォーマット100%・単語制約100%のみ合格。他カテゴリは空応答
+ELYZA-Diffusion-Instruct	テスト完了	34.5%（10/29）フォーマット67%・単語100%。ロールプレイ全滅
+openai_gpt-oss-120b-GGUF	ggufなし	フォルダ内にggufファイルが存在しない（MXFP4_MOEのみ）
+
+## 7. 指示追従率一覧（全モデル）
+
+model	rate	grade
+Qwen3-4B-Instruct-2507-FP8	100.0%	S
+Qwen3-4B-Instruct-2507	100.0%	S
+gemini-3-pro-preview	93.1%	A+
+gemma-3n-E4B-it	86.2%	A
+TinySwallow-1.5B-Instruct	86.2%	A
+gemini-2.5-flash-lite	82.8%	A
+gemma-3n-E2B-it	82.8%	A
+Gemma-2-Llama-Swallow-2b	82.8%	A
+shisa-v2.1-llama3.2-3b	82.8%	A
+TinySwallow-Q8_0-GGUF	75.9%	B+
+gemini-3-flash-preview	75.9%	B+
+shisa-v2.1-qwen3-8b	75.9%	B+
+shisa-v2.1-lfm2-1.2b	72.4%	B
+Qwen3-8B	69.0%	B
+gemini-2.5-flash	65.5%	B-
+Ministral-3-8B-Instruct	65.5%	B-
+Qwen3-1.7B	58.6%	C+
+gpt-oss-20b-Q8_0-GGUF	51.7%	C
+gpt-oss-20b	41.4%	C
+Qwen3-0.6B	41.4%	C
+ELYZA-Diffusion-Instruct	34.5%	C-
+gpt-oss-120b	27.6%	D
+gemma-3n-E2B-FP8-dynamic	17.2%	D
+shisa-v2.1-unphi4-14b	17.2%	D

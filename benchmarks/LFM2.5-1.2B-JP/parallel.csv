@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+LFM2.5-1.2B-JP,4,19.23,4,0,6144,319.55,19.22,19.22,19.23
+LFM2.5-1.2B-JP,8,19.44,8,0,12288,632.08,19.44,19.43,19.44
+LFM2.5-1.2B-JP,16,20.92,16,0,24171,1155.16,20.57,15.27,20.92
+LFM2.5-1.2B-JP,32,25.01,32,0,49152,1965.49,25.00,24.97,25.01
+LFM2.5-1.2B-JP,64,31.40,64,0,94754,3017.72,30.20,2.43,31.40

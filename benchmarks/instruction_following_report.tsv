@@ -1,0 +1,44 @@
+# 指示追従性テスト結果レポート（TPS付き・全モデル）
+# 実施日: 2026-01-22
+# テスト数: 29項目（11カテゴリ）
+
+## モデル別総合ランキング（指示追従率順）
+rank	model	type	params	rate	tps	recommendation
+1	Qwen3-4B-Instruct-2507-FP8	local	4B	100.0	38.9	最高品質。全指示100%対応
+2	gemini-2.5-flash-lite	API	-	82.8	122.7	API最速122.7 TPS
+3	gemma-3n-E2B-it	local	2B	82.8	29.1	軽量2Bで高性能
+4	Gemma-2-Llama-Swallow-2b-it-v0.1	local	2B	82.8	-	ロールプレイ100%
+5	shisa-v2.1-llama3.2-3b	local	3B	82.8	-	人格維持が優秀
+6	gemini-3-flash-preview	API	-	75.9	13.4	安全性・人格100%
+7	shisa-v2.1-qwen3-8b	local	8B	75.9	-	大規模だが複合指示に弱点
+8	gpt-oss-20b	local	20B	72.4	42.6	大型で高速42.6 TPS
+9	shisa-v2.1-lfm2-1.2b	local	1.2B	72.4	-	超軽量1.2B。ロールプレイ100%
+10	Qwen3-8B	local	8B	69.0	13.3	FP8版推奨
+11	gemini-2.5-flash	API	-	65.5	4.7	思考モードで低速
+12	Ministral-3-8B-Instruct-2512	local	8B	65.5	-	視点・複合指示に課題
+13	gemma-3n-E2B-it-FP8-dynamic	local	2B	17.2	-	動的量子化で品質低下
+14	gemini-3-pro-preview	API	-	10.3	-	preview版で不安定
+15	shisa-v2.1-unphi4-14b	local	14B	0.0	-	全テスト失敗（要調査）
+16	ELYZA-Diffusion-Instruct-1.0-Dream-7B	local	7B	0.0	-	Diffusionモデル。テスト接続に問題
+16	Qwen3-0.6B	local	0.6B	-	100.8	超高速100.8 TPS
+17	TinySwallow-1.5B-Instruct	local	1.5B	-	53.9	高速53.9 TPS
+18	Qwen3-1.7B	local	1.7B	-	43.7	高速43.7 TPS
+19	gpt-oss-120b	local	120B	-	30.9	大規模30.9 TPS
+20	Qwen3-4B-Instruct-2507	local	4B	-	21.0	非FP8版21.0 TPS
+21	gemma-3n-E4B-it	local	4B	-	17.5	4B版17.5 TPS
+
+## TPS（推論速度）ランキング
+rank	model	type	tps	instruction_rate
+1	gemini-2.5-flash-lite	API	122.7	82.8
+2	Qwen3-0.6B	local	100.8	-
+3	TinySwallow-1.5B-Instruct	local	53.9	-
+4	Qwen3-1.7B	local	43.7	-
+5	gpt-oss-20b	local	42.6	72.4
+6	Qwen3-4B-Instruct-2507-FP8	local	38.9	100.0
+7	gpt-oss-120b	local	30.9	-
+8	gemma-3n-E2B-it	local	29.1	82.8
+9	Qwen3-4B-Instruct-2507	local	21.0	-
+10	gemma-3n-E4B-it	local	17.5	-
+11	gemini-3-flash-preview	API	13.4	75.9
+12	Qwen3-8B	local	13.3	69.0
+13	gemini-2.5-flash	API	4.7	65.5

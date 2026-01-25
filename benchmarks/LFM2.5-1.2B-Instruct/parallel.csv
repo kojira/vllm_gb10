@@ -1,0 +1,6 @@
+model,concurrency,total_time_s,successful,failed,total_tokens,throughput_tps,avg_latency_s,min_latency_s,max_latency_s
+LFM2.5-1.2B-Instruct,4,19.86,4,0,4777,240.57,15.11,12.64,19.86
+LFM2.5-1.2B-Instruct,8,19.34,8,0,9748,504.15,15.42,11.09,19.34
+LFM2.5-1.2B-Instruct,16,20.30,16,0,18574,915.09,15.55,11.28,20.30
+LFM2.5-1.2B-Instruct,32,23.25,32,0,38425,1652.69,18.65,12.65,23.25
+LFM2.5-1.2B-Instruct,64,27.75,64,0,71275,2568.36,21.56,14.73,27.75
