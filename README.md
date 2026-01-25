@@ -484,12 +484,15 @@ python3 scripts/benchmark_full.py model.gguf --engine llamacpp --skip-download
 
 | Engine | Model | 品質 | 評価コメント |
 |:-------|:------|:----:|:-------------|
+| llama.cpp | **LFM2.5-1.2B-JP-Q8_0-GGUF** | ⭐⭐⭐ | 具体例が豊富、絵文字活用、親しみやすい説明 |
+| vLLM | **LFM2.5-1.2B-JP** | ⭐⭐⭐ | 構造化された説明、リンゴ・自動運転など具体例あり |
 | vLLM | **Ministral-3-8B-Instruct** | ⭐⭐⭐ | 口語的で親しみやすい説明、具体例が豊富 |
 | vLLM | **shisa-v2.1-llama3.2-3b** | ⭐⭐⭐ | 比喩を使った分かりやすい説明、Markdown活用 |
 | vLLM | **Gemma-2-Llama-Swallow-2b** | ⭐⭐⭐ | 箇条書きで具体例を列挙、構造化された回答 |
 | vLLM | **Gemma 3n E2B-it** | ⭐⭐⭐ | 学習・パターン認識・予測と段階的に説明 |
 | vLLM | **Gemma 3n E2B-it FP8** | ⭐⭐⭐ | E2Bと同等品質、FP8でも品質劣化なし |
 | vLLM | **shisa-v2.1-unphi4-14b** | ⭐⭐⭐ | 具体例（写真認識、ゲーム）を含む正確な説明 |
+| vLLM | **LFM2.5-1.2B-Instruct** | ⭐⭐☆ | 内容は正確だが「覚えて覚える」など繰り返しあり |
 | vLLM | **Qwen3-4B-Instruct-FP8** | ⭐⭐☆ | 「コンピュータの脳」という分かりやすい比喩 |
 | vLLM | **shisa-v2.1-qwen3-8b** | ⭐⭐☆ | 「お手伝いさん」の比喩は良いが、会話が続く癖あり |
 | Transformers | **ELYZA-Diffusion-Instruct** | ⭐⭐☆ | 内容は正確だが「言葉をしたり」など文法的違和感 |
