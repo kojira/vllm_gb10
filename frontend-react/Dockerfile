@@ -10,7 +10,7 @@ RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml* ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source
 COPY . .
@@ -19,7 +19,7 @@ COPY . .
 RUN pnpm run build
 
 # Production stage
-FROM node:22.23.4-alpine
+FROM node:22.23.4-alpine AS runtime
 
 WORKDIR /app
 
